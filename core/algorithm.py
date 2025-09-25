@@ -38,7 +38,7 @@ def orient_with_logic_and_experiments(graph, observational_data, model, nI=5000,
                 B = set(comp.predecessors(Vk))
                 orientation = robust_orientation_test(variable_to_intervene, Vk, list(B), observational_data, exp_data, alpha1=aI1, alpha2=aI2)
                 if orientation:
-                    print(f"Orientation: {orientation}")
+                    #print(f"Orientation: {orientation}")
                     comp.remove_edge(orientation[1], orientation[0])
 
                     all_oriented.add(orientation)

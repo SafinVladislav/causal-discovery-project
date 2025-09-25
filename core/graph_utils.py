@@ -33,7 +33,6 @@ def has_v_structure(graph):
     return False
 
 def is_bad_graph(graph):
-    print(f"Edges: {graph.edges()}")
     return has_directed_cycle(graph) or has_v_structure(graph)
 
 def propagate_orientations(graph):
