@@ -4,6 +4,9 @@ from pgmpy.models import BayesianNetwork
 from pgmpy.factors.discrete import TabularCPD
 
 def create_true_model():
+    return create_example_model()
+
+def create_example_model():
     model = BayesianNetwork([
         ('V1', 'V2'), ('V1', 'V3'), ('V2', 'V4'),
         ('V3', 'V2'), ('V3', 'V4'), ('V4', 'V5')
