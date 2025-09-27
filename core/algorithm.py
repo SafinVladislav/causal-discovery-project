@@ -6,7 +6,7 @@ from core.graph_utils import find_undirected_edges, propagate_orientations, get_
 from core.intervention import choose_intervention_variable, quasi_experiment
 from core.statistical_tests import robust_orientation_test
 
-def orient_with_logic_and_experiments(graph, observational_data, model, nI=5000, aI1=0.05, aI2=0.05, strategy="greedy"):
+def orient_with_logic_and_experiments(graph, observational_data, model, nI=5000, aI1=0.01, aI2=0.01, strategy="greedy"):
     temp_graph = graph.copy()
 
     num_experiments = 0 # Initialize experiment counter
