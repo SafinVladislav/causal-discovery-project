@@ -3,6 +3,7 @@ import contextlib
 import io
 import logging
 import warnings
+import time
 
 # Third-party library imports
 import networkx as nx
@@ -18,9 +19,15 @@ from core.intervention import silent_simulate
 from core.graph_utils import check_if_estimated_correctly, find_undirected_edges
 
 import logging
-
 # Suppress pgmpy warnings by setting the logging level to ERROR
 logging.getLogger("pgmpy").setLevel(logging.ERROR)
+
+from pathlib import Path
+import os
+
+current_script_path = Path(__file__).resolve()
+PROJECT_ROOT = current_script_path.parent
+RELATIVE_VIS_DIR = Path("visualizations")
 
 def compute_shd(estimated_cpdag, true_cpdag):
     """
@@ -64,8 +71,8 @@ def compute_shd(estimated_cpdag, true_cpdag):
     return skeleton_additions + skeleton_deletions + orientation_errors
 
 def tune_pc_parameters(model, n_trials_tune=10,
-                      n_candidates=[500, 1000, 5000, 10000, 20000], 
-                      sl_candidates=[0.001, 0.01, 0.05, 0.1]):
+                      n_candidates=[500, 1000, 2000, 5000, 10000, 20000, 50000], 
+                      sl_candidates=[0.001, 0.005, 0.01, 0.05, 0.1, 0.3]):
     """
     Tune the parameters for the PC algorithm by evaluating Structural Hamming Distance (SHD)
     on simulated data. The metric is the average SHD across trials, measuring the difference
@@ -148,28 +155,40 @@ def run_simulation(model, n_trials, nI_values, aI1_values, aI2_values, strategy=
         for nI in nI_values:
             for aI1 in aI1_values:
                 for aI2 in aI2_values:
-                    #print(f"\nRunning: nI={nI}, aI1={aI1}, aI2={aI2}")
                     corr_right, corr_wrong = 0, 0
                     incorr_right, incorr_wrong = 0, 0
                     num_correct_essential_graphs = 0
                     total_experiments = 0
 
+                    total_time_pc = 0.0
+                    total_time_orient = 0.0
+
                     for _ in range(n_trials):
                         obs_data = silent_simulate(model, pc_n, show_progress=False)
+                        
+                        start_pc = time.time()
                         pc_estimator = PC(data=obs_data)
                         with io.capture_output():
                             essential_graph = nx.DiGraph(pc_estimator.estimate(
                                 variant='stable', ci_test='chi_square',
                                 significance_level=pc_sl, return_type="cpdag"
                             ))
+                        end_pc = time.time()
+                        time_pc = end_pc - start_pc
+                        total_time_pc += time_pc
 
                         is_correct = check_if_estimated_correctly(essential_graph, true_graph)
                         if is_correct:
                             num_correct_essential_graphs += 1
-
+                        
+                        start_orient = time.time()
                         _, oriented, num_exp = orient_with_logic_and_experiments(
                             essential_graph, obs_data, model, nI, aI1, aI2, strategy
                         )
+                        end_orient = time.time()
+                        time_orient = end_orient - start_orient
+                        total_time_orient += time_orient
+
                         total_experiments += num_exp
 
                         right = len(oriented & true_edges)
@@ -183,6 +202,8 @@ def run_simulation(model, n_trials, nI_values, aI1_values, aI2_values, strategy=
                             incorr_wrong += wrong
 
                     avg_experiments = total_experiments / n_trials if n_trials > 0 else 0
+                    avg_time_pc = total_time_pc / n_trials if n_trials > 0 else 0
+                    avg_time_orient = total_time_orient / n_trials if n_trials > 0 else 0
                     total_oriented = corr_right + corr_wrong + incorr_right + incorr_wrong
                     total_rightly_oriented = corr_right + incorr_right
                     overall_perc = total_rightly_oriented / total_oriented if total_oriented > 0 else 0
@@ -195,13 +216,15 @@ def run_simulation(model, n_trials, nI_values, aI1_values, aI2_values, strategy=
                         'λ': overall_perc,
                         'm': num_correct_essential_graphs,
                         "λ'": conditional_perc,
-                        'avg_exp': avg_experiments
+                        'avg_exp': avg_experiments,
+                        'avg_time_pc': avg_time_pc,
+                        'avg_time_orient': avg_time_orient
                     })
                     pbar_outer.update(1)
 
     return simulation_results
 
-def visualize_graphs(true_model, essential_graph, oriented_graph, output_path):
+def visualize_graphs(true_model, essential_graph, oriented_graph):
     """
     Visualize the essential graph and the final oriented graph.
     
@@ -241,6 +264,7 @@ def visualize_graphs(true_model, essential_graph, oriented_graph, output_path):
     ax[1].set_title('Oriented Graph (After Algorithm)')
 
     plt.tight_layout()
+    output_path = PROJECT_ROOT / RELATIVE_VIS_DIR / 'output_graph.png'
     plt.savefig(output_path)
     print(f"Visualization saved to {output_path}")
 
@@ -248,20 +272,19 @@ if __name__ == '__main__':
     # Suppress warnings if desired
     warnings.filterwarnings("ignore")
     
-    N_TRIALS = 10  # Example: set to a positive value for actual runs
-    NI_VALUES = [200, 500, 1000, 10000]
-    AI1_VALUES = [0.01, 0.05, 0.1]
-    AI2_VALUES = [0.01, 0.05, 0.1]
+    N_TRIALS = 100
+    NI_VALUES = [500]#[200, 500, 1000, 5000, 10000]
+    AI1_VALUES = [0.1]#[0.01, 0.05, 0.1, 0.3]
+    AI2_VALUES = [0.05]#[0.01, 0.05, 0.1, 0.3]
     STRATEGY = "minimax"
-    VISUALIZATION_PATH = '/content/drive/MyDrive/causal-discovery-project/output_graph.png'
-
+  
     true_model = create_true_model()
     print("True model edges:", true_model.edges())
 
     # Step 1: Tune PC parameters
-    PC_N, PC_SL = 500, 0.01#tune_pc_parameters(true_model)
+    PC_N, PC_SL = 20000, 0.01#tune_pc_parameters(true_model)
     # Step 2: Run the simulation with tuned parameters and activate orientation algorithm
-    """results = run_simulation(
+    results = run_simulation(
         model=true_model,
         n_trials=N_TRIALS,
         nI_values=NI_VALUES,
@@ -273,12 +296,19 @@ if __name__ == '__main__':
     )
 
     # Print results
+    # Calculate total averages
+    total_avg_exp = sum(res['avg_exp'] for res in results) / len(results) if results else 0.0
+    total_avg_time_pc = sum(res['avg_time_pc'] for res in results) / len(results) if results else 0.0
+    total_avg_time_orient = sum(res['avg_time_orient'] for res in results) / len(results) if results else 0.0
+
+    # Print results
     print("\n--- Simulation Results ---")
-    print(f"{'nI':<8}{'aI1':<8}{'aI2':<8}{'λ':<8}{'m':<8}{'λ\'':<8}{'Avg Exp':<10}")
-    print("-" * 50)
+    print(f"{'nI':<8}{'aI1':<8}{'aI2':<8}{'λ':<8}{'m':<8}{'λ\'':<8}{'Avg Exp':<10}{'Avg Time PC':<12}{'Avg Time Orient':<15}")
+    print("-" * 70)
     for res in results:
-        print(f"{res['nI']:<8}{res['aI1']:<8.2f}{res['aI2']:<8.2f}{res['λ']:<8.3f}{res['m']:<8}{res['λ\'']:<8.3f}{res['avg_exp']:<10.2f}")
-    """
+        print(f"{res['nI']:<8}{res['aI1']:<8.2f}{res['aI2']:<8.2f}{res['λ']:<8.3f}{res['m']:<8}{res['λ\'']:<8.3f}{res['avg_exp']:<10.2f}{res['avg_time_pc']:<12.4f}{res['avg_time_orient']:<15.4f}")
+    print("-" * 70)
+    print(f"{'Total':<8}{'-':<8}{'-':<8}{'-':<8}{'-':<8}{'-':<8}{total_avg_exp:<10.2f}{total_avg_time_pc:<12.4f}{total_avg_time_orient:<15.4f}")
     # Additional visualization with example parameters
     print("\nGenerating visualization...")
     obs_data = silent_simulate(true_model, PC_N, show_progress=False)
@@ -296,4 +326,4 @@ if __name__ == '__main__':
         essential_graph, obs_data, true_model, nI=5000, aI1=0.01, aI2=0.01, strategy="greedy"
     )
 
-    visualize_graphs(true_model, essential_graph, oriented_graph, VISUALIZATION_PATH)
+    visualize_graphs(true_model, essential_graph, oriented_graph)

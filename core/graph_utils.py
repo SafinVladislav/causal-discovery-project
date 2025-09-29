@@ -1,6 +1,7 @@
 # Standard library imports
 import random
 import copy
+import itertools
 
 # Third-party library imports
 import networkx as nx
@@ -15,20 +16,17 @@ def find_undirected_edges(graph):
     return undirected
 
 def has_directed_cycle(graph):
-    undirected_edges = find_undirected_edges(graph)
-    graph.remove_edges_from(undirected_edges)
-    result = not nx.is_directed_acyclic_graph(graph)
-    graph.add_edges_from(undirected_edges)
-    return result
+    temp_graph = graph.copy()
+    temp_graph.remove_edges_from(find_undirected_edges(temp_graph))
+    return not nx.is_directed_acyclic_graph(temp_graph)
 
 def has_v_structure(graph):
-    for u, v in graph.edges():
-        if not graph.has_edge(v, u):
-            z_candidates = [
-                z for z in graph.predecessors(v)
-                if z != u and z not in graph.successors(v) and not graph.has_edge(z, u) and not graph.has_edge(u, z)
-            ]
-            if len(z_candidates) > 0:
+    for v in graph.nodes():
+        parents = list(set(graph.predecessors(v)) - set(graph.successors(v)))
+        if len(parents) < 2:
+            continue
+        for z, u in itertools.combinations(parents, 2):
+            if not graph.has_edge(z, u) and not graph.has_edge(u, z):
                 return True
     return False
 
@@ -96,7 +94,6 @@ def sample_dags(graph, n_samples):
         dag = generate_dag_from_cpdag(graph)
         if dag:
             dags.append(dag)
-    #print(len(dags))
     return dags
 
 def check_if_estimated_correctly(estimated, true_graph):

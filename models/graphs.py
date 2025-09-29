@@ -25,8 +25,15 @@ from core.algorithm import orient_with_logic_and_experiments
 from core.intervention import silent_simulate
 from core.graph_utils import check_if_estimated_correctly, find_undirected_edges
 
+from pathlib import Path
+import os
+
+current_script_path = Path(__file__).resolve()
+PROJECT_ROOT = current_script_path.parent.parent
+RELATIVE_LOADED_DIR = Path("loaded_models")
+
 def create_sprinkler_model():
-    model_path = 'sprinkler_model.pkl'
+    model_path = PROJECT_ROOT / RELATIVE_LOADED_DIR / 'sprinkler_model.pkl'
 
     if os.path.exists(model_path):
         print("Loading pre-trained Sprinkler model from file...")
@@ -52,7 +59,7 @@ def create_sprinkler_model():
         return pgmpy_model
 
 def create_asia_model():
-    model_path = 'asia_model.pkl'
+    model_path = PROJECT_ROOT / RELATIVE_LOADED_DIR / 'asia_model.pkl'
 
     if os.path.exists(model_path):
         print("Loading pre-trained Asia model from file...")
@@ -71,7 +78,7 @@ def create_asia_model():
         pgmpy_model = BayesianNetwork(edges)
         pgmpy_model.fit(df, estimator=BayesianEstimator)
         
-        with open('asia_model.pkl', 'wb') as f:
+        with open(model_path, 'wb') as f:
             pickle.dump(pgmpy_model, f)
 
         return pgmpy_model
@@ -101,5 +108,5 @@ def create_example_model():
     return model
 
 def create_true_model():
-    #return create_asia_model()
-    return create_sprinkler_model()
+    return create_asia_model()
+    #return create_sprinkler_model()

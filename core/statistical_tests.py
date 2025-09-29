@@ -61,7 +61,6 @@ def conditional_test(Vk, B, data_obs, data_exp, alpha=0.05):
 
             full_formula = f'{Vk} ~ dataset_group + {" + ".join(B)} + {" + ".join([f"{b} * dataset_group" for b in B])}'
             reduced_formula = f'{Vk} ~ {" + ".join(B)}'
-            #print(target_cardinality)
             if target_cardinality <= 2:
                 # Use binomial logistic regression for binary outcomes
                 full_model = sm.GLM.from_formula(full_formula, data=combined_data, family=Binomial()).fit()
