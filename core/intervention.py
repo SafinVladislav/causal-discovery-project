@@ -23,14 +23,29 @@ def quasi_experiment(model, var, samples):
     new_values[0] = np.round(values[0])
     new_values[1] = 1 - new_values[0]
 
+    state_names = {var: old_cpd.state_names[var]}
+    evidence = old_cpd.variables[1:] if len(old_cpd.variables) > 1 else None
+    if evidence:
+        for ev_var in evidence:
+            ev_cpd = model.get_cpds(ev_var)
+            if ev_cpd:
+                state_names[ev_var] = ev_cpd.state_names[ev_var]
+            else:
+                for node in model.nodes():
+                    node_cpd = model.get_cpds(node)
+                    if node_cpd and ev_var in node_cpd.state_names:
+                        state_names[ev_var] = node_cpd.state_names[ev_var]
+                        break
+
     new_cpd = TabularCPD(
         variable=var,
         variable_card=old_cpd.cardinality[0],
         values=new_values,
         evidence=old_cpd.variables[1:],
-        evidence_card=old_cpd.cardinality[1:]
+        evidence_card=old_cpd.cardinality[1:],
+        state_names=state_names
     )
-    intervened_model.remove_cpds(var)
+    intervened_model.remove_cpds(old_cpd)
     intervened_model.add_cpds(new_cpd)
     return silent_simulate(intervened_model, samples, show_progress=False)
 

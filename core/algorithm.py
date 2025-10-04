@@ -8,6 +8,7 @@ def orient_with_logic_and_experiments(graph, observational_data, model, nI=5000,
     all_oriented = set()
     num_experiments = 0
 
+    #print(len(get_chain_components(temp_graph)))
     # Process each chain component
     for comp in get_chain_components(temp_graph):
         intervened_in_comp = set()
