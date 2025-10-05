@@ -110,6 +110,8 @@ def create_model(model_name: str, n_samples: int = 1000):
     return pgmpy_model
 
 def create_true_model():
-    # return create_model('alarm')
+    #return create_model('alarm')
     #return create_model('child')
-    return create_model('insurance')
+    #return create_model('insurance')
+    #return create_model('hailfinder')
+    return create_model('win95pts')

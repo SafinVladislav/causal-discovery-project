@@ -79,27 +79,14 @@ def to_undirected_with_v_structures(directed_graph):
 
 
 def run_simulation(model, n_trials, nI_values, aI1_values, aI2_values, strategy="entropy"):
-    """
-    Run simulations to evaluate the orientation algorithm starting from the true essential graph.
-    
-    Args:
-        model: The true causal model.
-        n_trials (int): Number of simulation trials.
-        nI_values (list): Values for nI parameter in orientation.
-        aI1_values (list): Values for aI1 parameter in orientation.
-        aI2_values (list): Values for aI2 parameter in orientation.
-        strategy (str): Strategy for orientation ('entropy' or 'greedy').
-    
-    Returns:
-        list: List of result dictionaries for each parameter combination.
-    """
     true_graph = nx.DiGraph(model)
     true_edges = set(true_graph.edges())
     simulation_results = []
 
     print(f"Strategy: {strategy}")
-    
+
     total_combinations = len(nI_values) * len(aI1_values) * len(aI2_values)
+    #with tqdm(total=total_combinations, desc="Parameter combinations") as pbar_outer:
     for nI in nI_values:
         for aI1 in aI1_values:
             for aI2 in aI2_values:
@@ -107,18 +94,19 @@ def run_simulation(model, n_trials, nI_values, aI1_values, aI2_values, strategy=
                 incorr_right, incorr_wrong = 0, 0
                 num_correct_essential_graphs = 0
                 total_experiments = 0.0
+                max_experiments = 0
 
                 total_time_orient = 0.0
 
                 for _ in tqdm(range(n_trials), desc=f"nI={nI}, aI1={aI1}, aI2={aI2}"):
                     obs_data = silent_simulate(model, OBS_SAMPLES, show_progress=False)
-                    
+
                     essential_graph = to_undirected_with_v_structures(true_graph)
 
                     is_correct = check_if_estimated_correctly(essential_graph, true_graph)
                     if is_correct:
                         num_correct_essential_graphs += 1
-                    
+
                     start_orient = time.time()
                     _, oriented, num_exp = orient_with_logic_and_experiments(
                         essential_graph, obs_data, model, nI, aI1, aI2, strategy
@@ -128,6 +116,7 @@ def run_simulation(model, n_trials, nI_values, aI1_values, aI2_values, strategy=
                     total_time_orient += time_orient
 
                     total_experiments += num_exp
+                    max_experiments = max(max_experiments, num_exp)
 
                     right = len(oriented & true_edges)
                     wrong = len(find_undirected_edges(essential_graph)) / 2 - right
@@ -154,8 +143,10 @@ def run_simulation(model, n_trials, nI_values, aI1_values, aI2_values, strategy=
                     'm': num_correct_essential_graphs,
                     "λ'": conditional_perc,
                     'avg_exp': avg_experiments,
+                    'max_exp': max_experiments,
                     'avg_time_orient': avg_time_orient
                 })
+                #pbar_outer.update(1)
 
     return simulation_results
 
@@ -174,10 +165,12 @@ def visualize_graphs(true_model, essential_graph, oriented_graph):
     
     fig, ax = plt.subplots(nrows=1, ncols=2, figsize=(16, 8))
 
-    pos_essential = nx.spring_layout(essential_graph)
+    from networkx.drawing.nx_pydot import graphviz_layout
+    pos = graphviz_layout(essential_graph, prog='dot')
+    #pos = nx.spring_layout(essential_graph)
     nx.draw(
         essential_graph,
-        pos=pos_essential,
+        pos=pos,
         with_labels=True,
         node_size=2000,
         node_color='lightgreen',
@@ -189,7 +182,7 @@ def visualize_graphs(true_model, essential_graph, oriented_graph):
 
     nx.draw(
         oriented_graph,
-        pos=pos_essential,
+        pos=pos,
         with_labels=True,
         node_size=2000,
         node_color='lightcoral',
@@ -209,11 +202,11 @@ if __name__ == '__main__':
     # Suppress warnings if desired
     warnings.filterwarnings("ignore")
     
-    N_TRIALS = 10
-    NI_VALUES = [500]  # [200, 500, 1000, 5000, 10000]
-    AI1_VALUES = [0.05]  # [0.01, 0.05, 0.1, 0.3]
-    AI2_VALUES = [0.05]  # [0.01, 0.05, 0.1, 0.3]
-    STRATEGY = "greedy"
+    N_TRIALS = 1
+    NI_VALUES = [5000]#[1000, 5000, 10000]
+    AI1_VALUES = [0.01]#[0.01, 0.05, 0.1]
+    AI2_VALUES = [0.01]#[0.01, 0.05, 0.1]
+    #STRATEGY = "greedy"
   
     true_model = create_true_model()
     print(f"Nodes in true model: {len(true_model.nodes())}")
@@ -224,7 +217,7 @@ if __name__ == '__main__':
     for i, comp in enumerate(comps):
         print(f"Size of component {i} is {len(comp)}.")
     
-    for strategy in ["greedy"]:#, "entropy", "minimax"]:
+    for strategy in ["greedy", "entropy", "minimax"]:
         # Run the simulation and activate orientation algorithm
         results = run_simulation(
             model=true_model,
@@ -241,23 +234,23 @@ if __name__ == '__main__':
 
         # Print results
         print("\n--- Simulation Results ---")
-        print(f"{'nI':<8}{'aI1':<8}{'aI2':<8}{'λ':<8}{'m':<8}{'λ\'':<8}{'Avg Exp':<10}{'Avg Time Orient':<15}")
-        print("-" * 65)
+        print(f"{'nI':<8}{'aI1':<8}{'aI2':<8}{'λ':<8}{'m':<8}{'λ\'':<8}{'Avg Exp':<10}{'Max Exp':<10}{'Avg Time Orient':<15}")
+        print("-" * 75)
         for res in results:
-            print(f"{res['nI']:<8}{res['aI1']:<8.2f}{res['aI2']:<8.2f}{res['λ']:<8.3f}{res['m']:<8}{res['λ\'']:<8.3f}{res['avg_exp']:<10.2f}{res['avg_time_orient']:<15.4f}")
-        print("-" * 65)
-        print(f"{'Total':<8}{'-':<8}{'-':<8}{'-':<8}{'-':<8}{'-':<8}{total_avg_exp:<10.2f}{total_avg_time_orient:<15.4f}")
-    
-    """# Additional visualization with example parameters
-    print("\nGenerating visualization...")
+            print(f"{res['nI']:<8}{res['aI1']:<8.2f}{res['aI2']:<8.2f}{res['λ']:<8.3f}{res['m']:<8}{res['λ\'']:<8.3f}{res['avg_exp']:<10.2f}{res['max_exp']:<10.2f}{res['avg_time_orient']:<15.4f}")
+        print("-" * 75)
+        print(f"{'Total':<8}{'-':<8}{'-':<8}{'-':<8}{'-':<8}{'-':<8}{total_avg_exp:<10.2f}{'-':<10}{total_avg_time_orient:<15.4f}")   
+
+    # Additional visualization with example parameters
+    """print("\nGenerating visualization...")
     obs_data = silent_simulate(true_model, OBS_SAMPLES, show_progress=False)
     print("Observational data sample:")
     print(obs_data.head())
 
-    essential_graph = to_undirected_with_v_structures(true_model)"""
+    essential_graph = to_undirected_with_v_structures(true_model)
 
     oriented_graph, _, _ = orient_with_logic_and_experiments(
-        essential_graph, obs_data, true_model, nI=500, aI1=0.05, aI2=0.05, strategy="greedy"
+        essential_graph, obs_data, true_model, nI=5000, aI1=0.05, aI2=0.05, strategy="greedy"
     )
 
-    visualize_graphs(true_model, essential_graph, oriented_graph)
+    visualize_graphs(true_model, essential_graph, oriented_graph)"""
