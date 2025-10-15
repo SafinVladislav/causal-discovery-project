@@ -427,7 +427,11 @@ class TestDagGeneration(unittest.TestCase):
         graph.add_edges_from([('A', 'B'), ('B', 'A'), ('B', 'C'), ('C', 'B')])
         dag = generate_dag_from_cpdag(graph)
         self.assertIsNotNone(dag)
-    
+        self.assertEqual(len(find_undirected_edges(dag)), 0)
+        graph_skeleton = {tuple(sorted(e)) for e in graph.edges()}
+        dag_skeleton = {tuple(sorted(e)) for e in dag.edges()}
+        self.assertSetEqual(graph_skeleton, dag_skeleton, "DAG skeleton does not match graph skeleton")
+
     def test_generates_valid_dag_complex_case(self):
         """
         Tests that the function can generate a valid DAG from a more complex CPDAG.
@@ -437,6 +441,10 @@ class TestDagGeneration(unittest.TestCase):
         graph.add_edges_from([('A', 'B'), ('B', 'A'), ('B', 'C'), ('C', 'B'), ('C', 'A'), ('A', 'C'), ('A', 'D'), ('D', 'A'), ('D', 'B'), ('B', 'D')])
         dag = generate_dag_from_cpdag(graph)
         self.assertIsNotNone(dag)
+        self.assertEqual(len(find_undirected_edges(dag)), 0)
+        graph_skeleton = {tuple(sorted(e)) for e in graph.edges()}
+        dag_skeleton = {tuple(sorted(e)) for e in dag.edges()}
+        self.assertSetEqual(graph_skeleton, dag_skeleton, "DAG skeleton does not match graph skeleton")
 
     def test_sample_dags_count(self):
         """

@@ -31,11 +31,11 @@ RELATIVE_LOADED_DIR = Path("loaded_models")
 from pgmpy.sampling import BayesianModelSampling
 from pgmpy.readwrite import BIFReader as BIFReader
 
-BNLEARN_SUPPORTED = {'alarm', 'andes', 'asia', 'pathfinder', 'sachs', 'sprinkler'}
+BNLEARN_SUPPORTED = {'alarm', 'andes', 'asia', 'sachs', 'sprinkler'}
 
 BIF_BASE_URL = 'https://www.bnlearn.com/bnrepository/discrete-{size}/{name}-medium.bif'
 
-def create_model(model_name: str, n_samples: int = 1000):
+def create_model(model_name: str, n_samples: int = 10000):
     """
     Generalized model loader: Uses bnlearn if supported, else downloads BIF and loads.
     
@@ -66,52 +66,39 @@ def create_model(model_name: str, n_samples: int = 1000):
         pgmpy_model.fit(df, estimator=BayesianEstimator)
     
     else:
-        print(f"Loading {model_name} via BIF download...")
         size_map = {
             'child': ('https://www.bnlearn.com/bnrepository/child/child.bif.gz', 'child.bif'),
             'insurance': ('https://www.bnlearn.com/bnrepository/insurance/insurance.bif.gz', 'insurance.bif'),
             'hailfinder': ('https://www.bnlearn.com/bnrepository/hailfinder/hailfinder.bif.gz', 'hailfinder.bif'),
             'win95pts': ('https://www.bnlearn.com/bnrepository/win95pts/win95pts.bif.gz', 'win95pts.bif'),
-            # You would add other models here if you find their direct GZ links
+            'pathfinder': ('https://www.bnlearn.com/bnrepository/pathfinder/pathfinder.bif.gz', 'pathfinder.bif')
         }
         if model_name not in size_map:
             raise ValueError(f"Unsupported model '{model_name}'. Add to size_map or use bnlearn-supported.")
         
         bif_url, bif_filename = size_map[model_name]
-        
-        # 1. Download the GZIP content
-        response = requests.get(bif_url)
-        response.raise_for_status()
-        
-        # Define the path for the DECOMPRESSED BIF file
         bif_path = PROJECT_ROOT / RELATIVE_LOADED_DIR / bif_filename
-        
-        # 2. Decompress and save the BIF file
-        print(f"Decompressing GZIP content to {bif_filename}...")
-        # response.content contains the gzip bytes
-        decompressed_content = gzip.decompress(response.content)
-        
-        with open(bif_path, 'wb') as f:
-            f.write(decompressed_content) # Write the decompressed bytes
+        if not os.path.exists(bif_path):
+            print(f"Loading {model_name} via BIF download...")
+            # 1. Download the GZIP content
+            response = requests.get(bif_url)
+            response.raise_for_status()
+            # Define the path for the DECOMPRESSED BIF file
+            # 2. Decompress and save the BIF file
+            print(f"Decompressing GZIP content to {bif_filename}...")
+            # response.content contains the gzip bytes
+            decompressed_content = gzip.decompress(response.content)
+            
+            with open(bif_path, 'wb') as f:
+                f.write(decompressed_content) # Write the decompressed bytes
         
         # 3. Read the now plain-text BIF file
         reader = BIFReader(str(bif_path))
-        reference_model = reader.get_model()
-
-        data = reference_model.simulate(n_samples=n_samples)
-
-        pgmpy_model = BayesianNetwork(reference_model.edges())
-
-        pgmpy_model.fit(data, estimator=BayesianEstimator)
+        pgmpy_model = reader.get_model()
 
     with open(model_path, 'wb') as f:
         pickle.dump(pgmpy_model, f)
     print(f"Saved {model_name} model to pickle.")
     return pgmpy_model
 
-def create_true_model():
-    #return create_model('alarm')
-    #return create_model('child')
-    #return create_model('insurance')
-    #return create_model('hailfinder')
-    return create_model('win95pts')
+#'alarm', 'andes', 'asia', 'pathfinder', 'sachs', 'sprinkler', 'child', 'insurance', 'hailfinder', 'win95pts'

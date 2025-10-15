@@ -13,7 +13,7 @@ from IPython.utils import io
 
 # Local project imports
 from core.algorithm import orient_with_logic_and_experiments
-from models.graphs import create_true_model
+from models.graphs import create_model
 from core.intervention import silent_simulate
 from core.graph_utils import check_if_estimated_correctly, find_undirected_edges
 
@@ -90,22 +90,15 @@ def run_simulation(model, n_trials, nI_values, aI1_values, aI2_values, strategy=
     for nI in nI_values:
         for aI1 in aI1_values:
             for aI2 in aI2_values:
-                corr_right, corr_wrong = 0, 0
-                incorr_right, incorr_wrong = 0, 0
-                num_correct_essential_graphs = 0
-                total_experiments = 0.0
-                max_experiments = 0
-
-                total_time_orient = 0.0
-
                 for _ in tqdm(range(n_trials), desc=f"nI={nI}, aI1={aI1}, aI2={aI2}"):
+                    corr_right, corr_wrong = 0, 0
+                    incorr_right, incorr_wrong = 0, 0
+                    
                     obs_data = silent_simulate(model, OBS_SAMPLES, show_progress=False)
 
                     essential_graph = to_undirected_with_v_structures(true_graph)
 
                     is_correct = check_if_estimated_correctly(essential_graph, true_graph)
-                    if is_correct:
-                        num_correct_essential_graphs += 1
 
                     start_orient = time.time()
                     _, oriented, num_exp = orient_with_logic_and_experiments(
@@ -113,10 +106,6 @@ def run_simulation(model, n_trials, nI_values, aI1_values, aI2_values, strategy=
                     )
                     end_orient = time.time()
                     time_orient = end_orient - start_orient
-                    total_time_orient += time_orient
-
-                    total_experiments += num_exp
-                    max_experiments = max(max_experiments, num_exp)
 
                     right = len(oriented & true_edges)
                     wrong = len(find_undirected_edges(essential_graph)) / 2 - right
@@ -128,25 +117,23 @@ def run_simulation(model, n_trials, nI_values, aI1_values, aI2_values, strategy=
                         incorr_right += right
                         incorr_wrong += wrong
 
-                avg_experiments = total_experiments / n_trials if n_trials > 0 else 0
-                avg_time_orient = total_time_orient / n_trials if n_trials > 0 else 0
-                total_oriented = corr_right + corr_wrong + incorr_right + incorr_wrong
-                total_rightly_oriented = corr_right + incorr_right
-                overall_perc = total_rightly_oriented / total_oriented if total_oriented > 0 else 0
+                    #time_orient
+                    #oriented
+                    rightly_oriented = corr_right + incorr_right
+                    perc = rightly_oriented / len(oriented) if len(oriented) > 0 else 0
 
-                total_correct = corr_right + corr_wrong
-                conditional_perc = corr_right / total_correct if total_correct > 0 else 0
+                    correct = corr_right + corr_wrong
+                    conditional_perc = corr_right / correct if correct > 0 else 0
 
-                simulation_results.append({
-                    'nI': nI, 'aI1': aI1, 'aI2': aI2,
-                    'λ': overall_perc,
-                    'm': num_correct_essential_graphs,
-                    "λ'": conditional_perc,
-                    'avg_exp': avg_experiments,
-                    'max_exp': max_experiments,
-                    'avg_time_orient': avg_time_orient
-                })
-                #pbar_outer.update(1)
+                    simulation_results.append({
+                        'nI': nI, 'aI1': aI1, 'aI2': aI2,
+                        'λ': perc,
+                        'm': is_correct,
+                        "λ'": conditional_perc,
+                        'avg_exp': num_exp,
+                        'time_orient': time_orient
+                    })
+                    #pbar_outer.update(1)
 
     return simulation_results
 
@@ -199,58 +186,147 @@ def visualize_graphs(true_model, essential_graph, oriented_graph):
 
 
 if __name__ == '__main__':
-    # Suppress warnings if desired
     warnings.filterwarnings("ignore")
+    import numpy as np
+    from scipy.stats import ttest_rel, ranksums
+    import json
+    import os
+    model_name = 'win95pts'
+    model = create_model(model_name)
     
-    N_TRIALS = 1
-    NI_VALUES = [5000]#[1000, 5000, 10000]
-    AI1_VALUES = [0.01]#[0.01, 0.05, 0.1]
-    AI2_VALUES = [0.01]#[0.01, 0.05, 0.1]
-    #STRATEGY = "greedy"
-  
-    true_model = create_true_model()
-    print(f"Nodes in true model: {len(true_model.nodes())}")
-    print(f"Edges in true model: {len(true_model.edges())}")
-    from core.graph_utils import get_chain_components
-    comps = get_chain_components(to_undirected_with_v_structures(nx.DiGraph(true_model)))
-    print(f"There are: {len(comps)} components.")
-    for i, comp in enumerate(comps):
-        print(f"Size of component {i} is {len(comp)}.")
+    if not os.path.exists(f'/content/drive/MyDrive/causal-discovery-project/statistics/results_entropy_{model_name}.json'):
+        results_entropy = run_simulation(model, 50, [5000], [0.01], [0.01], "entropy")
+        with open(f'/content/drive/MyDrive/causal-discovery-project/statistics/results_entropy_{model_name}.json', 'w') as f:
+            json.dump(results_entropy, f, indent=4)
+    if not os.path.exists(f'/content/drive/MyDrive/causal-discovery-project/statistics/results_greedy_{model_name}.json'):
+        results_greedy = run_simulation(model, 50, [5000], [0.01], [0.01], "greedy")
+        with open(f'/content/drive/MyDrive/causal-discovery-project/statistics/results_greedy_{model_name}.json', 'w') as f:
+            json.dump(results_greedy, f, indent=4)
+    if not os.path.exists(f'/content/drive/MyDrive/causal-discovery-project/statistics/results_minimax_{model_name}.json'):
+        results_minimax = run_simulation(model, 50, [5000], [0.01], [0.01], "minimax")
+        with open(f'/content/drive/MyDrive/causal-discovery-project/statistics/results_minimax_{model_name}.json', 'w') as f:
+            json.dump(results_minimax, f, indent=4)
+
+    with open(f'/content/drive/MyDrive/causal-discovery-project/statistics/results_entropy_{model_name}.json', 'r') as f:
+        loaded_entropy = json.load(f)
+    with open(f'/content/drive/MyDrive/causal-discovery-project/statistics/results_greedy_{model_name}.json', 'r') as f:
+        loaded_greedy = json.load(f)
+    with open(f'/content/drive/MyDrive/causal-discovery-project/statistics/results_minimax_{model_name}.json', 'r') as f:
+        loaded_minimax = json.load(f)
+
+    greedy_exp = [res['avg_exp'] for res in loaded_greedy]
+    entropy_exp = [res['avg_exp'] for res in loaded_entropy]
+    minimax_exp = [res['avg_exp'] for res in loaded_minimax]
+    greedy_lambda = [res['λ'] for res in loaded_greedy]
+    entropy_lambda = [res['λ'] for res in loaded_entropy]
+    minimax_lambda = [res['λ'] for res in loaded_minimax]
+
+    import numpy as np
+    import matplotlib.pyplot as plt
+    import statsmodels.api as sm
+    from scipy.stats import ttest_rel, wilcoxon, shapiro
+
+def check_symmetry(data, name, alpha=0.05):
+    from scipy.stats import skewtest
+    skew_stat, skew_p = skewtest(data)
+    is_symmetric = skew_p > alpha
     
-    for strategy in ["greedy", "entropy", "minimax"]:
-        # Run the simulation and activate orientation algorithm
-        results = run_simulation(
-            model=true_model,
-            n_trials=N_TRIALS,
-            nI_values=NI_VALUES,
-            aI1_values=AI1_VALUES,
-            aI2_values=AI2_VALUES,
-            strategy=strategy#STRATEGY,
-        )
+    print(f"\n--- Symmetry Check for {name} Differences (D'Agostino's Skewtest) ---")
+    print(f"Skewtest Statistic: {skew_stat:.3f}")
+    print(f"P-value: {skew_p:.3f}")
+    
+    if is_symmetric:
+        print(f"Condition Met: P > {alpha}. We ASSUME symmetry (skewness is not significantly non-zero).")
+    else:
+        print(f"Condition Failed: P <= {alpha}. We REJECT symmetry (data is significantly skewed).")
+        
+    return is_symmetric, skew_p
 
-        # Calculate total averages
-        total_avg_exp = sum(res['avg_exp'] for res in results) / len(results) if results else 0.0
-        total_avg_time_orient = sum(res['avg_time_orient'] for res in results) / len(results) if results else 0.0
+import numpy as np
+from scipy.stats import wilcoxon
 
-        # Print results
-        print("\n--- Simulation Results ---")
-        print(f"{'nI':<8}{'aI1':<8}{'aI2':<8}{'λ':<8}{'m':<8}{'λ\'':<8}{'Avg Exp':<10}{'Max Exp':<10}{'Avg Time Orient':<15}")
-        print("-" * 75)
-        for res in results:
-            print(f"{res['nI']:<8}{res['aI1']:<8.2f}{res['aI2']:<8.2f}{res['λ']:<8.3f}{res['m']:<8}{res['λ\'']:<8.3f}{res['avg_exp']:<10.2f}{res['max_exp']:<10.2f}{res['avg_time_orient']:<15.4f}")
-        print("-" * 75)
-        print(f"{'Total':<8}{'-':<8}{'-':<8}{'-':<8}{'-':<8}{'-':<8}{total_avg_exp:<10.2f}{'-':<10}{total_avg_time_orient:<15.4f}")   
+# Assume check_symmetry(diff_scores, data_name) is defined elsewhere 
+# and returns (is_symmetric: bool, skew_p: float)
 
-    # Additional visualization with example parameters
-    """print("\nGenerating visualization...")
-    obs_data = silent_simulate(true_model, OBS_SAMPLES, show_progress=False)
-    print("Observational data sample:")
-    print(obs_data.head())
+def run_conditional_test(data_a, data_b, data_name, alpha=0.05):
+    """
+    Performs a conditional statistical test (Wilcoxon Signed-Rank Test 
+    if symmetry is assumed) and reports which data is statistically bigger.
+    """
+    diff_scores = [a - b for a, b in zip(data_a, data_b)]
+    
+    # Assuming this function is correctly defined and available
+    is_symmetric, skew_p = check_symmetry(diff_scores, data_name) 
+    
+    # Calculate the median of the differences for directionality
+    median_diff = np.average(diff_scores) 
+    
+    print("\n--- Statistical Test Result ---")
+    
+    if is_symmetric:
+        # Assumption met (Symmetry): Use the Wilcoxon Signed-Rank Test.
+        stat, p_val = wilcoxon(data_a, data_b, zero_method='wilcox', alternative='two-sided') 
+        print(f"Test Used: Wilcoxon Signed-Rank Test")
+        print(f"Result: W={stat:.4f}, p={p_val:.4e}")
+        print(f"Median of Differences (A - B): {median_diff:.4f}")
 
-    essential_graph = to_undirected_with_v_structures(true_model)
+        # --- Logic for determining statistical difference and direction ---
+        if p_val < alpha:
+            # Result is statistically significant
+            if median_diff > 0:
+                print(f"✅ Conclusion: {data_name} **Data A** is statistically **significantly larger** than Data B (p < {alpha}).")
+            elif median_diff < 0:
+                print(f"✅ Conclusion: {data_name} **Data B** is statistically **significantly larger** than Data A (p < {alpha}).")
+            else:
+                # Should be rare, but handles the case where p < alpha but median_diff is 0
+                # A more robust check might look at the sign of the test statistic or mean difference
+                print(f"⚠️ Conclusion: {data_name} There is a statistically significant difference (p < {alpha}), but the median difference is zero.")
+        else:
+            # Result is NOT statistically significant
+            print(f"❌ Conclusion: {data_name} There is **no statistically significant difference** between Data A and Data B (p >= {alpha}).")
+            
+    else:
+        # If symmetry assumption is NOT met, you might want to use a different test 
+        # (like the Sign Test) or flag a warning. For now, we only report the assumption failure.
+        print("⚠️ Test not run: The symmetry assumption for Wilcoxon was not met.")
 
-    oriented_graph, _, _ = orient_with_logic_and_experiments(
-        essential_graph, obs_data, true_model, nI=5000, aI1=0.05, aI2=0.05, strategy="greedy"
-    )
+    # Plot for visual confirmation regardless of the result
+    # plot_distributions(diff_scores, data_name)
 
-    visualize_graphs(true_model, essential_graph, oriented_graph)"""
+# --- 5. Execution ---
+if __name__ == "__main__":
+    print("="*60)
+    print("ANALYSIS OF EFFICIENCY (avg_exp): Entropy vs. Greedy (Symmetry Check)")
+    print("="*60)
+    run_conditional_test(entropy_exp, greedy_exp, "Efficiency (avg_exp)")
+
+    print("\n\n" + "="*60)
+    print("ANALYSIS OF ACCURACY (λ): Entropy vs. Greedy (Symmetry Check)")
+    print("="*60)
+    run_conditional_test(entropy_lambda, greedy_lambda, "Accuracy (λ)")
+
+    print("="*60)
+    print("ANALYSIS OF EFFICIENCY (avg_exp): Minimax vs. Greedy (Symmetry Check)")
+    print("="*60)
+    run_conditional_test(minimax_exp, greedy_exp, "Efficiency (avg_exp)")
+
+    print("\n\n" + "="*60)
+    print("ANALYSIS OF ACCURACY (λ): Minimax vs. Greedy (Symmetry Check)")
+    print("="*60)
+    run_conditional_test(minimax_lambda, greedy_lambda, "Accuracy (λ)")
+
+    print("="*60)
+    print("ANALYSIS OF EFFICIENCY (avg_exp): Entropy vs. Minimax (Symmetry Check)")
+    print("="*60)
+    run_conditional_test(entropy_exp, minimax_exp, "Efficiency (avg_exp)")
+
+    print("\n\n" + "="*60)
+    print("ANALYSIS OF ACCURACY (λ): Entropy vs. Minimax (Symmetry Check)")
+    print("="*60)
+    run_conditional_test(entropy_lambda, minimax_lambda, "Accuracy (λ)")
+    
+    """results_no_propagating = run_simulation(model, 50, [5000], [0.01], [0.01], "greedy")
+
+    greedy_lambda = [res['λ'] for res in results_no_propagating]
+
+    print(greedy_lambda)"""

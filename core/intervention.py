@@ -7,10 +7,16 @@ from pgmpy.models import BayesianNetwork
 from pgmpy.factors.discrete import TabularCPD
 from core.graph_utils import find_undirected_edges, sample_dags
 
-def silent_simulate(model, *args, **kwargs):
+"""def silent_simulate(model, *args, **kwargs):
     # Suppress stdout and stderr during model simulation
     with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
         return model.simulate(*args, **kwargs)
+"""
+from pgmpy.sampling import BayesianModelSampling
+def silent_simulate(model, samples, show_progress=False):
+    with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+        sampler = BayesianModelSampling(model)
+        return sampler.forward_sample(size=samples)
 
 def quasi_experiment(model, var, samples):
     # Perform intervention by modifying variable's CPD
@@ -49,7 +55,8 @@ def quasi_experiment(model, var, samples):
     intervened_model.add_cpds(new_cpd)
     return silent_simulate(intervened_model, samples, show_progress=False)
 
-def choose_intervention_variable(graph, intervened, n_samples=1000, strategy="entropy"):
+N_SAMPLES = 1000
+def choose_intervention_variable(graph, intervened, strategy="entropy"):
     # Select optimal variable for intervention
     if strategy not in ["greedy", "minimax", "entropy"]:
         raise ValueError("Invalid strategy.")
@@ -67,7 +74,7 @@ def choose_intervention_variable(graph, intervened, n_samples=1000, strategy="en
         node_counts = Counter(u for u, _ in undirected_edges if u in nodes_to_consider)
         return max(node_counts, key=node_counts.get, default=None)
 
-    dag_sample = sample_dags(graph, n_samples=n_samples)
+    dag_sample = sample_dags(graph, n_samples=N_SAMPLES)
     if not dag_sample:
         return choose_intervention_variable(graph, intervened, strategy="greedy")
 
@@ -88,7 +95,7 @@ def choose_intervention_variable(graph, intervened, n_samples=1000, strategy="en
         )
 
         if strategy == "entropy":
-            entropy = -sum((p / n_samples) * log(p / n_samples) 
+            entropy = -sum((p / N_SAMPLES) * log(p / N_SAMPLES) 
                           for p in orientation_classes.values() if p > 0)
             node_metrics[node] = entropy
         elif strategy == "minimax":
