@@ -75,7 +75,7 @@ class TestRobustOrientationFunctions(unittest.TestCase):
         obs = pd.DataFrame({'Y': ['A'] * 40 + ['B'] * 10})
         exp = pd.DataFrame({'Y': ['A'] * 10 + ['B'] * 40})
         # provide empty B so conditional_test returns False
-        res = robust_orientation_test('X', 'Y', [], obs, exp)
+        res, _, _ = robust_orientation_test('X', 'Y', [], obs, exp)
         self.assertEqual(res, ('X', 'Y'))
 
         # 2) conditional True, marginal False -> returns (Vk, Vi)
@@ -97,13 +97,13 @@ class TestRobustOrientationFunctions(unittest.TestCase):
         self.assertFalse(marg)
         self.assertTrue(cond)
 
-        res2 = robust_orientation_test('I', 'Y', ['B1'], obs_df, exp_df)
+        res2, _, _ = robust_orientation_test('I', 'Y', ['B1'], obs_df, exp_df)
         self.assertEqual(res2, ('Y', 'I'))
 
         # 3) both False -> returns None
         obs_same = pd.DataFrame({'Y': np.random.choice(['A', 'B'], size=60)})
         exp_same = pd.DataFrame({'Y': np.random.choice(['A', 'B'], size=60)})
-        res3 = robust_orientation_test('I', 'Y', [], obs_same, exp_same)
+        res3, _, _ = robust_orientation_test('I', 'Y', [], obs_same, exp_same)
         self.assertIsNone(res3)
 
         # 4) both True -> returns None (ambiguous orientation)
@@ -111,7 +111,7 @@ class TestRobustOrientationFunctions(unittest.TestCase):
         n = 80
         obs = pd.DataFrame({'Y': ['A'] * 60 + ['B'] * 20, 'Z': np.random.normal(size=n)})
         exp = pd.DataFrame({'Y': ['A'] * 20 + ['B'] * 60, 'Z': np.random.normal(size=n)})
-        res4 = robust_orientation_test('I', 'Y', ['Z'], obs, exp)
+        res4, _, _ = robust_orientation_test('I', 'Y', ['Z'], obs, exp)
         # ambiguous: both tests should detect differences -> result is None
         self.assertIsNone(res4)
 

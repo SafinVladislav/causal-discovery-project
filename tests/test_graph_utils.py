@@ -410,6 +410,20 @@ class TestChainComponents(unittest.TestCase):
         nodes = components[0].nodes()
         self.assertCountEqual(nodes, ['A', 'B'])
 
+def check_generated_dag(obj, graph, dag):
+    obj.assertIsNotNone(dag)
+    obj.assertEqual(len(find_undirected_edges(dag)), 0)
+    graph_skeleton = {tuple(sorted(e)) for e in graph.edges()}
+    dag_skeleton = {tuple(sorted(e)) for e in dag.edges()}
+    obj.assertSetEqual(graph_skeleton, dag_skeleton, "DAG skeleton does not match graph skeleton")
+
+    bad = False
+    for edge in dag.edges():
+        if is_bad_graph(dag, edge):
+            bad = True
+            break
+    obj.assertEqual(bad, False)
+
 class TestDagGeneration(unittest.TestCase):
     """
     Test suite for the DAG generation and sampling functions.
@@ -426,11 +440,9 @@ class TestDagGeneration(unittest.TestCase):
         graph = nx.DiGraph()
         graph.add_edges_from([('A', 'B'), ('B', 'A'), ('B', 'C'), ('C', 'B')])
         dag = generate_dag_from_cpdag(graph)
-        self.assertIsNotNone(dag)
-        self.assertEqual(len(find_undirected_edges(dag)), 0)
-        graph_skeleton = {tuple(sorted(e)) for e in graph.edges()}
-        dag_skeleton = {tuple(sorted(e)) for e in dag.edges()}
-        self.assertSetEqual(graph_skeleton, dag_skeleton, "DAG skeleton does not match graph skeleton")
+        #dag = nx.DiGraph()
+        #dag.add_edges_from([('A', 'B'), ('C', 'B')])
+        check_generated_dag(self, graph, dag)
 
     def test_generates_valid_dag_complex_case(self):
         """
@@ -440,11 +452,8 @@ class TestDagGeneration(unittest.TestCase):
         graph = nx.DiGraph()
         graph.add_edges_from([('A', 'B'), ('B', 'A'), ('B', 'C'), ('C', 'B'), ('C', 'A'), ('A', 'C'), ('A', 'D'), ('D', 'A'), ('D', 'B'), ('B', 'D')])
         dag = generate_dag_from_cpdag(graph)
-        self.assertIsNotNone(dag)
-        self.assertEqual(len(find_undirected_edges(dag)), 0)
-        graph_skeleton = {tuple(sorted(e)) for e in graph.edges()}
-        dag_skeleton = {tuple(sorted(e)) for e in dag.edges()}
-        self.assertSetEqual(graph_skeleton, dag_skeleton, "DAG skeleton does not match graph skeleton")
+        
+        check_generated_dag(self, graph, dag)
 
     def test_sample_dags_count(self):
         """
@@ -456,7 +465,7 @@ class TestDagGeneration(unittest.TestCase):
         dags = sample_dags(graph, n_samples=n_samples)
         self.assertEqual(len(dags), n_samples)
         for dag in dags:
-            self.assertIsNotNone(dag)
+            check_generated_dag(self, graph, dag)
 
     def test_sample_dags_with_zero_samples(self):
         """

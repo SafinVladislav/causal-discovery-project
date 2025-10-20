@@ -6,7 +6,7 @@ import networkx as nx
 import pandas as pd
 
 # Import your modules
-from core.algorithm import orient_with_logic_and_experiments
+from core.orienting_alg import orient_with_logic_and_experiments
 from core.intervention import quasi_experiment, choose_intervention_variable
 from core.graph_utils import find_undirected_edges
 from core.intervention import silent_simulate
@@ -146,7 +146,7 @@ class TestCausalDiscovery(unittest.TestCase):
             ('V3', 'V4')
         ])
         
-        oriented_graph, oriented_edges, num_experiments = orient_with_logic_and_experiments(
+        oriented_graph, oriented_edges, num_experiments, _, _, _ = orient_with_logic_and_experiments(
             undirected_graph, observational_data, model, nI=5000, aI1=0.01, aI2=0.01
         )
 
@@ -179,7 +179,7 @@ class TestCausalDiscovery(unittest.TestCase):
         undirected_graph.add_edges_from([('V1', 'V2'), ('V2', 'V1'), ('V2', 'V3'), ('V3', 'V2')])
         
         # Run the orientation algorithm
-        oriented_graph, oriented_edges, num_experiments = orient_with_logic_and_experiments(
+        oriented_graph, oriented_edges, num_experiments, _, _, _ = orient_with_logic_and_experiments(
             undirected_graph, observational_data, model, nI=1000, aI1=0.01, aI2=0.01
         )
         
@@ -200,7 +200,7 @@ class TestCausalDiscovery(unittest.TestCase):
         undirected_graph.add_nodes_from(model.nodes())
         undirected_graph.add_edges_from([('V1', 'V2'), ('V3', 'V2')])
         
-        oriented_graph, oriented_edges, num_experiments = orient_with_logic_and_experiments(
+        oriented_graph, oriented_edges, num_experiments, _, _, _ = orient_with_logic_and_experiments(
             undirected_graph, observational_data, model, nI=1000, aI1=0.01, aI2=0.01
         )
         
@@ -225,7 +225,7 @@ class TestCausalDiscovery(unittest.TestCase):
         
         for strategy in strategies:
             with self.subTest(strategy=strategy):
-                oriented_graph, oriented_edges, num_experiments = orient_with_logic_and_experiments(
+                oriented_graph, oriented_edges, num_experiments, _, _, _ = orient_with_logic_and_experiments(
                     undirected_graph, observational_data, model, nI=1000, aI1=0.01, aI2=0.01, strategy=strategy
                 )
                 
@@ -239,7 +239,7 @@ class TestCausalDiscovery(unittest.TestCase):
         model = self.create_simple_chain_model()
         observational_data = silent_simulate(model, 1000, show_progress=False)
         
-        oriented_graph, oriented_edges, num_experiments = orient_with_logic_and_experiments(
+        oriented_graph, oriented_edges, num_experiments, _, _, _ = orient_with_logic_and_experiments(
             empty_graph, observational_data, model
         )
         
@@ -253,7 +253,7 @@ class TestCausalDiscovery(unittest.TestCase):
         
         fully_directed_graph = nx.DiGraph(model.edges())
         
-        oriented_graph, oriented_edges, num_experiments = orient_with_logic_and_experiments(
+        oriented_graph, oriented_edges, num_experiments, _, _, _ = orient_with_logic_and_experiments(
             fully_directed_graph, observational_data, model
         )
         
@@ -273,7 +273,7 @@ class TestCausalDiscovery(unittest.TestCase):
             ('A', 'D'), ('D', 'A')
         ])
         
-        oriented_graph, oriented_edges, num_experiments = orient_with_logic_and_experiments(
+        oriented_graph, oriented_edges, num_experiments, _, _, _ = orient_with_logic_and_experiments(
             undirected_graph, observational_data, model, nI=5000, aI1=0.01, aI2=0.01
         )
         
@@ -295,7 +295,7 @@ class TestCausalDiscovery(unittest.TestCase):
             ('V3', 'V4'), ('V4', 'V3')
         ])
 
-        oriented_graph, oriented_edges, num_experiments = orient_with_logic_and_experiments(
+        oriented_graph, oriented_edges, num_experiments, _, _, _ = orient_with_logic_and_experiments(
             undirected_graph, observational_data, model, nI=5000, aI1=0.01, aI2=0.01
         )
         
@@ -317,7 +317,7 @@ class TestCausalDiscovery(unittest.TestCase):
             ('B', 'C'), ('C', 'B')
         ])
 
-        oriented_graph, oriented_edges, num_experiments = orient_with_logic_and_experiments(
+        oriented_graph, oriented_edges, num_experiments, _, _, _ = orient_with_logic_and_experiments(
             undirected_graph, observational_data, model, nI=5000, aI1=0.01, aI2=0.01
         )
         
@@ -341,7 +341,7 @@ class TestCausalDiscovery(unittest.TestCase):
             ('C', 'E')
         ])
 
-        oriented_graph, oriented_edges, num_experiments = orient_with_logic_and_experiments(
+        oriented_graph, oriented_edges, num_experiments, _, _, _ = orient_with_logic_and_experiments(
             undirected_graph, observational_data, model, nI=5000, aI1=0.01, aI2=0.01
         )
         

@@ -6,25 +6,18 @@ import numpy as np
 from pgmpy.models import BayesianNetwork
 from pgmpy.factors.discrete import TabularCPD
 from core.graph_utils import find_undirected_edges, sample_dags
-
-"""def silent_simulate(model, *args, **kwargs):
-    # Suppress stdout and stderr during model simulation
-    with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
-        return model.simulate(*args, **kwargs)
-"""
 from pgmpy.sampling import BayesianModelSampling
+
 def silent_simulate(model, samples, show_progress=False):
     with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
         sampler = BayesianModelSampling(model)
         return sampler.forward_sample(size=samples)
 
 def quasi_experiment(model, var, samples):
-    # Perform intervention by modifying variable's CPD
     intervened_model = model.copy()
     old_cpd = intervened_model.get_cpds(var)
     values = old_cpd.values.reshape(old_cpd.cardinality[0], -1)
     
-    # Vectorized update of probabilities
     new_values = np.zeros_like(values)
     new_values[0] = np.round(values[0])
     new_values[1] = 1 - new_values[0]
@@ -56,29 +49,28 @@ def quasi_experiment(model, var, samples):
     return silent_simulate(intervened_model, samples, show_progress=False)
 
 N_SAMPLES = 1000
+THRESHOLD = 0.7
+
 def choose_intervention_variable(graph, intervened, strategy="entropy"):
-    # Select optimal variable for intervention
     if strategy not in ["greedy", "minimax", "entropy"]:
         raise ValueError("Invalid strategy.")
 
     undirected_edges = find_undirected_edges(graph)
     if not undirected_edges:
-        return None
+        return None, None
 
-    # Use set union for efficiency
     nodes_to_consider = sorted(set().union(*undirected_edges) - intervened)
     if not nodes_to_consider:
-        return None
+        return None, None
 
     if strategy == "greedy":
         node_counts = Counter(u for u, _ in undirected_edges if u in nodes_to_consider)
-        return max(node_counts, key=node_counts.get, default=None)
+        return max(node_counts, key=node_counts.get, default=None), 1
 
     dag_sample = sample_dags(graph, n_samples=N_SAMPLES)
-    if not dag_sample:
+    if len(dag_sample) / N_SAMPLES < THRESHOLD:
         return choose_intervention_variable(graph, intervened, strategy="greedy")
 
-    # Precompute adjacent edges for each node
     adj_undirected = {node: {tuple(sorted(e)) for e in undirected_edges if node in e} 
                       for node in nodes_to_consider}
     
@@ -95,13 +87,13 @@ def choose_intervention_variable(graph, intervened, strategy="entropy"):
         )
 
         if strategy == "entropy":
-            entropy = -sum((p / N_SAMPLES) * log(p / N_SAMPLES) 
+            entropy = -sum((p / len(dag_sample)) * log(p / len(dag_sample)) 
                           for p in orientation_classes.values() if p > 0)
             node_metrics[node] = entropy
         elif strategy == "minimax":
             node_metrics[node] = max(orientation_classes.values())
 
     if not node_metrics:
-        return None
-
-    return (max if strategy == "entropy" else min)(node_metrics, key=node_metrics.get)
+        return None, None
+    
+    return (max if strategy == "entropy" else min)(node_metrics, key=node_metrics.get), strategy == "greedy"

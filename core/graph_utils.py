@@ -1,12 +1,58 @@
-# Standard library imports
 import random
 import copy
 import itertools
-
-# Third-party library imports
 import networkx as nx
 import pandas as pd
 from collections import defaultdict
+
+def to_undirected_with_v_structures(directed_graph):
+    """
+    Convert a directed graph to an undirected graph, preserving v-structures as directed edges.
+    
+    Args:
+        directed_graph (nx.DiGraph): The input directed graph (e.g., from a pgmpy model).
+    
+    Returns:
+        nx.DiGraph: A graph where v-structure edges are directed, and other edges are undirected
+                   (represented by bidirectional edges).
+    """
+    # Initialize a new directed graph
+    result_graph = nx.DiGraph()
+    result_graph.add_nodes_from(directed_graph.nodes())
+    
+    # Find all v-structures (X -> Y <- Z)
+    v_structures = []
+    for y in directed_graph.nodes():
+        # Get parents (nodes with edges pointing to y, excluding successors)
+        parents = list(set(directed_graph.predecessors(y)) - set(directed_graph.successors(y)))
+        if len(parents) >= 2:
+            import itertools
+            for x, z in itertools.combinations(parents, 2):
+                if not directed_graph.has_edge(x, z) and not directed_graph.has_edge(z, x):
+                    v_structures.append((x, y, z))
+    
+    # Create undirected edges for all edges in the input graph
+    undirected_edges = set()
+    for u, v in directed_graph.edges():
+        # Skip edges that are part of v-structures (to be added as directed later)
+        is_v_structure_edge = False
+        for x, y, z in v_structures:
+            if (u == x and v == y) or (u == z and v == y) or (u == y and v == x) or (u == y and v == z):
+                is_v_structure_edge = True
+                break
+        if not is_v_structure_edge:
+            undirected_edges.add((u, v))
+            undirected_edges.add((v, u))  # Add both directions for undirected
+    
+    # Add undirected edges (bidirectional) to the result graph
+    result_graph.add_edges_from(undirected_edges)
+    
+    # Add directed edges for v-structures
+    for x, y, z in v_structures:
+        result_graph.add_edge(x, y)
+        result_graph.add_edge(z, y)
+    
+    return result_graph
 
 def find_undirected_edges(graph):
     undirected = []
@@ -17,13 +63,13 @@ def find_undirected_edges(graph):
 
 def has_directed_cycle(graph, new_oriented_edge):
     u, v = new_oriented_edge
-    # Check if there is a path from v back to u in the graph (excluding the new edge)
+
     visited = set()
     stack = [v]
     while stack:
         node = stack.pop()
         if node == u:
-            return True  # Cycle found
+            return True
         if node not in visited:
             visited.add(node)
             for neighbor in (set(graph.successors(node)) - set(graph.predecessors(node))):
@@ -45,6 +91,7 @@ def is_bad_graph(graph, new_oriented_edge):
 def propagate_orientations(graph):
     temp_graph = graph.copy()
     all_oriented = set()
+    
     while True:
         oriented_in_pass = False
         undirected_edges = [e for e in find_undirected_edges(temp_graph)]
@@ -83,34 +130,64 @@ def get_chain_components(graph):
     node_components = list(nx.connected_components(undirected_graph))
     return [nx.DiGraph(undirected_graph.subgraph(nodes).copy()) for nodes in node_components]
 
-def generate_dag_from_cpdag(graph):
+def recursive(graph):
+    undirected_edges = find_undirected_edges(graph)
+    if len(undirected_edges) == 0:
+        return graph
+
+    import random
+    u, v = random.choice(undirected_edges)
+    if random.random() < 0.5:
+        u, v = v, u
+
+    # First
     temp_graph = graph.copy()
-    undirected_edges = find_undirected_edges(temp_graph)
-    random.shuffle(undirected_edges)
-    for u, v in {tuple(sorted(e)) for e in undirected_edges}:
-        if not temp_graph.has_edge(u, v) or not temp_graph.has_edge(v, u):
-            continue
-
-        if random.choice([True, False]):
-            temp_graph.remove_edge(v, u)
-        else:
-            temp_graph.remove_edge(u, v)
-
+    temp_graph.remove_edge(v, u)
+    if not is_bad_graph(temp_graph, (u, v)):
         propagate_orientations(temp_graph)
-        
-    return temp_graph
+        dag = recursive(temp_graph)
+        if dag is not None:
+            return dag
+    # Second
+    temp_graph = graph.copy()
+    temp_graph.remove_edge(u, v)
+    if not is_bad_graph(temp_graph, (v, u)):
+        propagate_orientations(temp_graph)
+        dag = recursive(temp_graph)
+        if dag is not None:
+            return dag
+    # Default
+    return None
+
+def generate_dag_from_cpdag(graph):    
+    return recursive(graph)
 
 def sample_dags(graph, n_samples):
-    #print("Start")
-    #print(is_bad_graph(graph, (None, None)))
+    #bad = 0
     dags = []
     for _ in range(n_samples):
         dag = generate_dag_from_cpdag(graph)
         if dag:
             dags.append(dag)
-    #print(f"Dags: {len(dags)}")
-    #print("End")
+            """print(len(dag.edges()))
+            print(len(find_undirected_edges(graph)))
+            print(len(graph.edges()))
+            print(len(find_undirected_edges(dag)))
+            for u, v in dag.edges():
+                if is_bad_graph(dag, (u, v)):
+                  bad += 1
+                  break"""
+    """print(f"Undirected: {len(find_undirected_edges(graph))}")
+    print(f"Good: {len(dags) - bad}; Bad: {bad}")
+    print(f"Dags: {len(dags)}")"""
     return dags
+
+from joblib import Parallel, delayed
+def sample_dags(graph, n_samples):
+    def generate_one():
+        return generate_dag_from_cpdag(graph)
+    dags = Parallel(n_jobs=-1)(delayed(generate_one)() for _ in range(n_samples))
+    return [dag for dag in dags if dag]
 
 def check_if_estimated_correctly(estimated, true_graph):
     if set(map(tuple, map(sorted, estimated.edges()))) != set(map(tuple, map(sorted, true_graph.edges()))):

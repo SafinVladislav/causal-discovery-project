@@ -18,52 +18,51 @@ from tqdm import tqdm
 from IPython.utils import io
 from pgmpy.estimators import PC
 
-from core.algorithm import orient_with_logic_and_experiments
+from core.orienting_alg import orient_with_logic_and_experiments
 from core.intervention import silent_simulate
 from core.graph_utils import check_if_estimated_correctly, find_undirected_edges
 
 from pathlib import Path
 
 current_script_path = Path(__file__).resolve()
-PROJECT_ROOT = current_script_path.parent.parent
-RELATIVE_LOADED_DIR = Path("loaded_models")
+LOADED_MODELS_DIR = current_script_path.parent
 
 from pgmpy.sampling import BayesianModelSampling
 from pgmpy.readwrite import BIFReader as BIFReader
 
 BNLEARN_SUPPORTED = {'alarm', 'andes', 'asia', 'sachs', 'sprinkler'}
 
-BIF_BASE_URL = 'https://www.bnlearn.com/bnrepository/discrete-{size}/{name}-medium.bif'
-
-def create_model(model_name: str, n_samples: int = 10000):
-    """
-    Generalized model loader: Uses bnlearn if supported, else downloads BIF and loads.
-    
-    Args:
-        model_name (str): e.g., 'alarm', 'child', 'insurance'.
-        n_samples (int): Samples to simulate/fit (default 1000 for consistency).
-    
-    Returns:
-        pgmpy BayesianNetwork (fitted and pickled).
-    """
-    model_path = PROJECT_ROOT / RELATIVE_LOADED_DIR / f'{model_name}_model.pkl'
+def create_model(model_name: str):
+    model_path = LOADED_MODELS_DIR / f'{model_name}_model.pkl'
 
     if os.path.exists(model_path):
         print(f"Loading pre-trained {model_name.capitalize()} model from file...")
         with open(model_path, 'rb') as f:
             return pickle.load(f)
 
-    if model_name in BNLEARN_SUPPORTED:
+    if model_name == "example":
+        pgmpy_model = BayesianNetwork([
+            ('V1', 'V2'),
+            ('V1', 'V3'),
+            ('V2', 'V3'),
+            ('V2', 'V4'),
+            ('V3', 'V4'),
+            ('V4', 'V5')
+        ])
+
+        cpd_v1 = TabularCPD('V1', 2, [[0.5], [0.5]])
+        cpd_v2 = TabularCPD('V2', 2, [[0.8, 0.2], [0.2, 0.8]], evidence=['V1'], evidence_card=[2])
+        cpd_v3 = TabularCPD('V3', 2, [[0.9, 0.7, 0.7, 0.1], [0.1, 0.3, 0.3, 0.9]], evidence=['V1', 'V2'], evidence_card=[2, 2])
+        cpd_v4 = TabularCPD('V4', 2, [[0.9, 0.6, 0.6, 0.2], [0.1, 0.4, 0.4, 0.8]], evidence=['V2', 'V3'], evidence_card=[2, 2])
+        cpd_v5 = TabularCPD('V5', 2, [[0.7, 0.3], [0.3, 0.7]], evidence=['V4'], evidence_card=[2])
+
+        pgmpy_model.add_cpds(cpd_v1, cpd_v2, cpd_v3, cpd_v4, cpd_v5)
+        return pgmpy_model
+    
+    elif model_name in BNLEARN_SUPPORTED:
         print(f"Loading {model_name} via bnlearn...")
-        df = bn.import_example(model_name)
         model_bn = bn.import_DAG(model_name, verbose=0)
-        
-        adjmat = model_bn['adjmat']
-        edges = [(source, target) for source, row in adjmat.iterrows() 
-                 for target, value in row.items() if value]
-        
-        pgmpy_model = BayesianNetwork(edges)
-        pgmpy_model.fit(df, estimator=BayesianEstimator)
+        pgmpy_model = model_bn['model']
     
     else:
         size_map = {
@@ -77,22 +76,16 @@ def create_model(model_name: str, n_samples: int = 10000):
             raise ValueError(f"Unsupported model '{model_name}'. Add to size_map or use bnlearn-supported.")
         
         bif_url, bif_filename = size_map[model_name]
-        bif_path = PROJECT_ROOT / RELATIVE_LOADED_DIR / bif_filename
+        bif_path = LOADED_MODELS_DIR / bif_filename
         if not os.path.exists(bif_path):
             print(f"Loading {model_name} via BIF download...")
-            # 1. Download the GZIP content
             response = requests.get(bif_url)
             response.raise_for_status()
-            # Define the path for the DECOMPRESSED BIF file
-            # 2. Decompress and save the BIF file
             print(f"Decompressing GZIP content to {bif_filename}...")
-            # response.content contains the gzip bytes
             decompressed_content = gzip.decompress(response.content)
-            
             with open(bif_path, 'wb') as f:
-                f.write(decompressed_content) # Write the decompressed bytes
+                f.write(decompressed_content)
         
-        # 3. Read the now plain-text BIF file
         reader = BIFReader(str(bif_path))
         pgmpy_model = reader.get_model()
 
