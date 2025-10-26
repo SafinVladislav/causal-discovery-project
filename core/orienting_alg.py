@@ -5,7 +5,6 @@ from core.statistical_tests import robust_orientation_test
 def orient_with_logic_and_experiments(graph, observational_data, model, nI=5000, aI1=0.01, aI2=0.01, strategy="greedy"):
     temp_graph = graph.copy()
     all_oriented = set()
-    num_experiments = 0
 
     total_interventions = 0
     fallback_interventions = 0 
@@ -29,7 +28,6 @@ def orient_with_logic_and_experiments(graph, observational_data, model, nI=5000,
             fallback_interventions += fallback
 
             intervened_in_comp.add(variable_to_intervene)
-            num_experiments += 1
             exp_data = quasi_experiment(model, variable_to_intervene, samples=nI)
 
             edges_to_check = [(u, v) for u, v in comp_undirected if variable_to_intervene in (u, v) and u < v]
@@ -39,6 +37,10 @@ def orient_with_logic_and_experiments(graph, observational_data, model, nI=5000,
 
                 vk = v if u == variable_to_intervene else u
                 predecessors = set(comp.predecessors(vk))
+
+                #print("\n===")
+                #print(f"\nVi - {variable_to_intervene}; Vk - {vk}")
+
                 orientation, marg, cond = robust_orientation_test(variable_to_intervene, vk, list(predecessors), observational_data, exp_data, alpha1=aI1, alpha2=aI2)
                 if orientation:
                     comp.remove_edge(orientation[1], orientation[0])
@@ -54,4 +56,4 @@ def orient_with_logic_and_experiments(graph, observational_data, model, nI=5000,
     fallback_perc = fallback_interventions / total_interventions if (total_interventions > 0) else 0
     marg_perc = marg_ors / total_ors if (total_ors > 0) else 0
     cond_perc = cond_ors / total_ors if (total_ors > 0) else 0
-    return temp_graph, all_oriented, num_experiments, fallback_perc, marg_perc, cond_perc
+    return temp_graph, all_oriented, total_interventions, fallback_perc, marg_perc, cond_perc

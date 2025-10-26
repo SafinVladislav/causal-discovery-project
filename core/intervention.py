@@ -49,6 +49,7 @@ def quasi_experiment(model, var, samples):
     return silent_simulate(intervened_model, samples, show_progress=False)
 
 N_SAMPLES = 1000
+EST_ITERS = 3
 THRESHOLD = 0.7
 
 def choose_intervention_variable(graph, intervened, strategy="entropy"):
@@ -65,35 +66,64 @@ def choose_intervention_variable(graph, intervened, strategy="entropy"):
 
     if strategy == "greedy":
         node_counts = Counter(u for u, _ in undirected_edges if u in nodes_to_consider)
+        #print(node_counts)
         return max(node_counts, key=node_counts.get, default=None), 1
 
-    dag_sample = sample_dags(graph, n_samples=N_SAMPLES)
-    if len(dag_sample) / N_SAMPLES < THRESHOLD:
-        return choose_intervention_variable(graph, intervened, strategy="greedy")
+    #dag_sample = sample_dags(graph, n_samples=N_SAMPLES)
+    #if len(dag_sample) / N_SAMPLES < THRESHOLD:
+    #    return choose_intervention_variable(graph, intervened, strategy="greedy")
 
     adj_undirected = {node: {tuple(sorted(e)) for e in undirected_edges if node in e} 
                       for node in nodes_to_consider}
     
+    sampling_success = False
+    orientation_totals = {node: {} for node in nodes_to_consider}
+    for _ in range(EST_ITERS):
+        dag_sample = sample_dags(graph, n_samples=N_SAMPLES)
+        #for dag in dag_sample:
+        #    print(dag.edges())
+
+        if len(dag_sample) / N_SAMPLES < THRESHOLD:
+                continue
+        sampling_success = True
+
+        for node in nodes_to_consider:
+            edges = adj_undirected[node]
+            if not edges:
+                continue
+
+            orientation_classes = Counter(
+                tuple("out" if dag.has_edge(node, v if node == u else u) else "in"
+                      for u, v in edges)
+                for dag in dag_sample
+            )
+
+            for orientation_tuple, count in orientation_classes.items():
+                orientation_totals[node][orientation_tuple] = orientation_totals[node].get(orientation_tuple, 0) + count / len(dag_sample)
+
+    if not sampling_success:
+        return choose_intervention_variable(graph, intervened, strategy="greedy")
+
+    for node in nodes_to_consider:
+        #print(node)
+        for orientation_tuple in orientation_totals[node].keys():
+            orientation_totals[node][orientation_tuple] /= EST_ITERS
+            #print(orientation_totals[node][orientation_tuple])
+    
+
     node_metrics = {}
     for node in nodes_to_consider:
-        edges = adj_undirected[node]
-        if not edges:
-            continue
-
-        orientation_classes = Counter(
-            tuple("out" if dag.has_edge(node, v if node == u else u) else "in"
-                  for u, v in edges)
-            for dag in dag_sample
-        )
-
         if strategy == "entropy":
-            entropy = -sum((p / len(dag_sample)) * log(p / len(dag_sample)) 
-                          for p in orientation_classes.values() if p > 0)
+            entropy = -sum(p * log(p) 
+                          for p in orientation_totals[node].values() if p > 0)
             node_metrics[node] = entropy
         elif strategy == "minimax":
-            node_metrics[node] = max(orientation_classes.values())
+            node_metrics[node] = max(orientation_totals[node].values())
 
     if not node_metrics:
         return None, None
     
-    return (max if strategy == "entropy" else min)(node_metrics, key=node_metrics.get), strategy == "greedy"
+    node = (max if strategy == "entropy" else min)(node_metrics, key=node_metrics.get)
+    #print(f"\nNode to intervene: {node}. It's metric: {node_metrics[node]}.")
+    #print(f"All metrics: {node_metrics}.")
+    return node, strategy == "greedy"

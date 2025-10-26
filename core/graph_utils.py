@@ -85,7 +85,14 @@ def has_v_structure(graph, new_oriented_edge):
                 return True
     return False
 
-def is_bad_graph(graph, new_oriented_edge):
+def is_bad_graph(graph, new_oriented_edge=None):
+    if new_oriented_edge == None:
+        for edge in graph.edges():
+            if graph.has_edge(edge[1], edge[0]):
+                continue
+            if is_bad_graph(graph, edge):
+                return True
+        return False
     return has_directed_cycle(graph, new_oriented_edge) or has_v_structure(graph, new_oriented_edge)
 
 def propagate_orientations(graph):
@@ -118,6 +125,7 @@ def propagate_orientations(graph):
             if orientation is not None:
                 all_oriented.add(orientation)
                 temp_graph.remove_edge(orientation[1], orientation[0])
+                graph.remove_edge(orientation[1], orientation[0])
                 oriented_in_pass = True
 
         if not oriented_in_pass:
@@ -130,62 +138,39 @@ def get_chain_components(graph):
     node_components = list(nx.connected_components(undirected_graph))
     return [nx.DiGraph(undirected_graph.subgraph(nodes).copy()) for nodes in node_components]
 
-def recursive(graph):
-    undirected_edges = find_undirected_edges(graph)
-    if len(undirected_edges) == 0:
-        return graph
+MAX_ATTEMPTS = 100
 
-    import random
-    u, v = random.choice(undirected_edges)
-    if random.random() < 0.5:
-        u, v = v, u
+def orient_random_restarts(graph):
+    def set_orientation(g, orientation):
+        u, v = orientation
+        g.add_edge(u, v)
+        g.remove_edge(v, u)
 
-    # First
-    temp_graph = graph.copy()
-    temp_graph.remove_edge(v, u)
-    if not is_bad_graph(temp_graph, (u, v)):
-        propagate_orientations(temp_graph)
-        dag = recursive(temp_graph)
-        if dag is not None:
-            return dag
-    # Second
-    temp_graph = graph.copy()
-    temp_graph.remove_edge(u, v)
-    if not is_bad_graph(temp_graph, (v, u)):
-        propagate_orientations(temp_graph)
-        dag = recursive(temp_graph)
-        if dag is not None:
-            return dag
-    # Default
+    def random_orient_all(g):
+        undirected_edges = find_undirected_edges(g)
+        for (a, b) in {tuple(sorted(e)) for e in undirected_edges}:
+            if random.random() < 0.5:
+                orientation = (a, b)
+            else:
+                orientation = (b, a)
+            set_orientation(g, orientation)
+
+    for attempt in range(1, MAX_ATTEMPTS + 1):
+        temp = graph.copy()
+        random_orient_all(temp)
+
+        if not is_bad_graph(temp):
+            return temp
+
     return None
 
-def generate_dag_from_cpdag(graph):    
-    return recursive(graph)
-
-def sample_dags(graph, n_samples):
-    #bad = 0
-    dags = []
-    for _ in range(n_samples):
-        dag = generate_dag_from_cpdag(graph)
-        if dag:
-            dags.append(dag)
-            """print(len(dag.edges()))
-            print(len(find_undirected_edges(graph)))
-            print(len(graph.edges()))
-            print(len(find_undirected_edges(dag)))
-            for u, v in dag.edges():
-                if is_bad_graph(dag, (u, v)):
-                  bad += 1
-                  break"""
-    """print(f"Undirected: {len(find_undirected_edges(graph))}")
-    print(f"Good: {len(dags) - bad}; Bad: {bad}")
-    print(f"Dags: {len(dags)}")"""
-    return dags
+def generate_dag(graph):
+    return orient_random_restarts(graph.copy())
 
 from joblib import Parallel, delayed
 def sample_dags(graph, n_samples):
     def generate_one():
-        return generate_dag_from_cpdag(graph)
+        return generate_dag(graph)
     dags = Parallel(n_jobs=-1)(delayed(generate_one)() for _ in range(n_samples))
     return [dag for dag in dags if dag]
 

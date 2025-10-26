@@ -1,0 +1,15 @@
+[
+    {
+        "nI": 5000,
+        "aI1": 0.01,
+        "aI2": 0.01,
+        "rop": 0.0,
+        "m": true,
+        "ropao": 0,
+        "avg_exp": 18,
+        "time_orient": 142.55330300331116,
+        "fallback_perc": 1.0,
+        "marg_perc": 0.0,
+        "cond_perc": 0.0
+    }
+]

@@ -5,11 +5,11 @@
         "aI2": 0.01,
         "\u03bb": 1.0,
         "m": true,
-        "\u03bb'": 1.0,
+        "\u03bb'": 0.75,
         "avg_exp": 5,
-        "time_orient": 5.486571550369263,
+        "time_orient": 9.320452690124512,
         "fallback_perc": 0.0,
-        "marg_perc": 0.25,
-        "cond_perc": 0.5
+        "marg_perc": 0.3333333333333333,
+        "cond_perc": 0.16666666666666666
     }
 ]

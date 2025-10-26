@@ -58,6 +58,22 @@ def create_model(model_name: str):
 
         pgmpy_model.add_cpds(cpd_v1, cpd_v2, cpd_v3, cpd_v4, cpd_v5)
         return pgmpy_model
+
+    elif model_name == "example_2":
+        pgmpy_model = BayesianNetwork([
+            ('V1', 'V2'),
+            ('V1', 'V3'),
+            ('V2', 'V3'),
+            ('V3', 'V4')
+        ])
+
+        cpd_v1 = TabularCPD('V1', 2, [[0.5], [0.5]])
+        cpd_v2 = TabularCPD('V2', 2, [[0.8, 0.2], [0.2, 0.8]], evidence=['V1'], evidence_card=[2])
+        cpd_v3 = TabularCPD('V3', 2, [[0.9, 0.7, 0.7, 0.1], [0.1, 0.3, 0.3, 0.9]], evidence=['V1', 'V2'], evidence_card=[2, 2])
+        cpd_v4 = TabularCPD('V4', 2, [[0.7, 0.3], [0.3, 0.7]], evidence=['V3'], evidence_card=[2])
+
+        pgmpy_model.add_cpds(cpd_v1, cpd_v2, cpd_v3, cpd_v4)
+        return pgmpy_model
     
     elif model_name in BNLEARN_SUPPORTED:
         print(f"Loading {model_name} via bnlearn...")

@@ -54,6 +54,10 @@ def run_simulation(model, n_trials, nI_values, aI1_values, aI2_values, strategy=
                     _, oriented, num_exp, fallback_perc, marg_perc, cond_perc = orient_with_logic_and_experiments(
                         essential_graph, obs_data, model, nI, aI1, aI2, strategy
                     )
+
+                    #print(f"\nTrue: {sorted(true_edges)}")
+                    #print(f"Oriented: {sorted(oriented)}")
+
                     end_orient = time.time()
                     time_orient = end_orient - start_orient
 
@@ -67,17 +71,15 @@ def run_simulation(model, n_trials, nI_values, aI1_values, aI2_values, strategy=
                         incorr_right += right
                         incorr_wrong += wrong
 
-                    rightly_oriented = corr_right + incorr_right
-                    perc = rightly_oriented / len(oriented) if len(oriented) > 0 else 0
+                    rop = (corr_right + incorr_right) / (corr_right + corr_wrong + incorr_right + incorr_wrong) if (corr_right + corr_wrong + incorr_right + incorr_wrong) > 0 else 0
 
-                    correct = corr_right + corr_wrong
-                    conditional_perc = corr_right / correct if correct > 0 else 0
+                    ropao = len(oriented & true_edges) / len(oriented) if len(oriented) > 0 else 0
 
                     simulation_results.append({
                         'nI': nI, 'aI1': aI1, 'aI2': aI2,
-                        'λ': perc,
+                        'rop': rop, #rightly oriented percentage
                         'm': is_correct,
-                        "λ'": conditional_perc,
+                        "ropao": ropao, #rightly oriented percentage among oriented
                         'avg_exp': num_exp,
                         'time_orient': time_orient,
                         'fallback_perc': fallback_perc,
@@ -128,40 +130,33 @@ if __name__ == "__main__":
     import json
     import os
 
-    from tests.test_strategies import analyze_strategies_for_model
-    models_to_test = ['example', 'asia', 'sprinkler']  # Add more models as needed
-    for model_name in models_to_test:
-        try:
-            analyze_strategies_for_model(model_name)
-        except Exception as e:
-            print(f"Error analyzing {model_name}: {e}")
-            continue
-
     #'example', 'alarm', 'andes', 'asia', 'pathfinder', 'sachs', 'sprinkler', 'child', 'insurance', 'hailfinder', 'win95pts'
     #"minimax", "greedy", "entropy"
-    """model_name = 'example'
-    strategy = "entropy"
+    model_name = 'child'
+    strategy = "greedy"
     model = create_model(model_name)
+    trials = 1
 
-    results = run_simulation(model, 1, [5000], [0.01], [0.01], strategy)
+    results = run_simulation(model, trials, [5000], [0.01], [0.01], strategy)
 
-    with open(f'/content/drive/MyDrive/causal-discovery-project/statistics/results_{strategy}_{model_name}_just_in_case.json', 'w') as f:
-            json.dump(results, f, indent=4)
+    with open(f'/content/drive/MyDrive/causal-discovery-project/statistics/results_{strategy}_{model_name}_{trials}.json', 'w') as f:
+        json.dump(results, f, indent=4)
 
     print("\n--- Simulation Results ---")
-    print(f"{'nI':<8}{'aI1':<8}{'aI2':<8}{'λ':<8}{'m':<8}{'λ\'':<8}{'Avg Exp':<10}{'Avg Time Orient':<15}{'Fallback perc':<15}{'Marg perc':<15}{'Cond perc':<15}")
+    print(f"{'nI':<8}{'aI1':<8}{'aI2':<8}{'rop':<8}{'m':<8}{'ropao':<8}{'Avg Exp':<10}{'Avg Time Orient':<15}{'Fallback perc':<15}{'Marg perc':<15}{'Cond perc':<15}")
     for res in results:
-        print(f"{res['nI']:<8}{res['aI1']:<8.2f}{res['aI2']:<8.2f}{res['λ']:<8.3f}{res['m']:<8}{res['λ\'']:<8.3f}{res['avg_exp']:<10.2f}{res['time_orient']:<15.4f}{res['fallback_perc']:<15.4f}{res['marg_perc']:<15.4f}{res['cond_perc']:<15.4f}")
+        print(f"{res['nI']:<8}{res['aI1']:<8.2f}{res['aI2']:<8.2f}{res['rop']:<8.3f}{res['m']:<8}{res['ropao']:<8.3f}{res['avg_exp']:<10.2f}{res['time_orient']:<15.4f}{res['fallback_perc']:<15.4f}{res['marg_perc']:<15.4f}{res['cond_perc']:<15.4f}")
     
-    total_accuracy = sum(res['λ'] for res in results) / len(results) if results else 0.0
+    total_rop = sum(res['rop'] for res in results) / len(results) if results else 0.0
+    total_ropao = sum(res['ropao'] for res in results) / len(results) if results else 0.0
     total_avg_exp = sum(res['avg_exp'] for res in results) / len(results) if results else 0.0
     total_time_orient = sum(res['time_orient'] for res in results) / len(results) if results else 0.0
     total_fallback_perc = sum(res['fallback_perc'] for res in results) / len(results) if results else 0.0
     total_marg_perc = sum(res['marg_perc'] for res in results) / len(results) if results else 0.0
     total_cond_perc = sum(res['cond_perc'] for res in results) / len(results) if results else 0.0
 
-    print(f"{'Total':<8}{'-':<8}{'-':<8}{total_accuracy:<8.2f}{'-':<8}{'-':<8}{total_avg_exp:<10.2f}{total_time_orient:<15.4f}{total_fallback_perc:<15.4f}{total_marg_perc:<15.4f}{total_cond_perc:<15.4f}")
-    """
+    print(f"{'Total':<8}{'-':<8}{'-':<8}{total_rop:<8.2f}{'-':<8}{total_ropao:<8.2f}{total_avg_exp:<10.2f}{total_time_orient:<15.4f}{total_fallback_perc:<15.4f}{total_marg_perc:<15.4f}{total_cond_perc:<15.4f}")
+
     """if not os.path.exists(f'/content/drive/MyDrive/causal-discovery-project/statistics/results_entropy_{model_name}.json'):
         results_entropy = run_simulation(model, 10, [5000], [0.01], [0.01], "entropy")
         with open(f'/content/drive/MyDrive/causal-discovery-project/statistics/results_entropy_{model_name}.json', 'w') as f:

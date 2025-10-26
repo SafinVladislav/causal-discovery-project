@@ -6,10 +6,10 @@
         "\u03bb": 1.0,
         "m": true,
         "\u03bb'": 1.0,
-        "avg_exp": 7,
-        "time_orient": 23.387786626815796,
+        "avg_exp": 2,
+        "time_orient": 5.756592035293579,
         "fallback_perc": 0.0,
-        "marg_perc": 0.8695652173913043,
-        "cond_perc": 0.0
+        "marg_perc": 0.3333333333333333,
+        "cond_perc": 0.6666666666666666
     }
 ]
