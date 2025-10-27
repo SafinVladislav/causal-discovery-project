@@ -2,7 +2,7 @@ from core.graph_utils import find_undirected_edges, propagate_orientations, get_
 from core.intervention import choose_intervention_variable, quasi_experiment
 from core.statistical_tests import robust_orientation_test
 
-def orient_with_logic_and_experiments(graph, observational_data, model, nI=5000, aI1=0.01, aI2=0.01, strategy="greedy"):
+def orient_with_logic_and_experiments(graph, observational_data, model, nI=5000, aI1=0.01, aI2=0.01, strategy="greedy", true_edges=None):
     temp_graph = graph.copy()
     all_oriented = set()
 
@@ -38,8 +38,12 @@ def orient_with_logic_and_experiments(graph, observational_data, model, nI=5000,
                 vk = v if u == variable_to_intervene else u
                 predecessors = set(comp.predecessors(vk))
 
-                #print("\n===")
-                #print(f"\nVi - {variable_to_intervene}; Vk - {vk}")
+                print("\n===")
+                print(f"\nVi - {variable_to_intervene}; Vk - {vk}")
+                if (vk, variable_to_intervene) in true_edges:
+                    print("Supposed to be")
+                else:
+                    print("Not supposed to be")
 
                 orientation, marg, cond = robust_orientation_test(variable_to_intervene, vk, list(predecessors), observational_data, exp_data, alpha1=aI1, alpha2=aI2)
                 if orientation:

@@ -26,7 +26,7 @@ logging.getLogger("pgmpy").setLevel(logging.ERROR)
 current_script_path = Path(__file__).resolve()
 PROJECT_ROOT = current_script_path.parent
 RELATIVE_VIS_DIR = Path("visualizations")
-OBS_SAMPLES = 20000
+OBS_SAMPLES = 5000
 
 def run_simulation(model, n_trials, nI_values, aI1_values, aI2_values, strategy="entropy"):
     true_graph = nx.DiGraph(model)
@@ -52,10 +52,10 @@ def run_simulation(model, n_trials, nI_values, aI1_values, aI2_values, strategy=
 
                     start_orient = time.time()
                     _, oriented, num_exp, fallback_perc, marg_perc, cond_perc = orient_with_logic_and_experiments(
-                        essential_graph, obs_data, model, nI, aI1, aI2, strategy
-                    )
+                        essential_graph, obs_data, model, nI, aI1, aI2, strategy, true_edges=true_edges
+                    ) #!!!
 
-                    #print(f"\nTrue: {sorted(true_edges)}")
+                    print(f"\nTrue: {sorted(true_edges)}")
                     #print(f"Oriented: {sorted(oriented)}")
 
                     end_orient = time.time()
@@ -132,7 +132,7 @@ if __name__ == "__main__":
 
     #'example', 'alarm', 'andes', 'asia', 'pathfinder', 'sachs', 'sprinkler', 'child', 'insurance', 'hailfinder', 'win95pts'
     #"minimax", "greedy", "entropy"
-    model_name = 'child'
+    model_name = 'child'#'win95pts'
     strategy = "greedy"
     model = create_model(model_name)
     trials = 1
