@@ -21,9 +21,9 @@ def quasi_experiment(model, var, samples):
     new_values = np.zeros_like(values)
     max_indices = np.argmin(values, axis=0)
     new_values[max_indices, np.arange(values.shape[1])] = 1.0
-    print(new_values.shape)
-    print(values[0])
-    print(values[1])
+    #print(new_values.shape)
+    #print(values[0])
+    #print(values[1])
 
     state_names = {var: old_cpd.state_names[var]}
     evidence = old_cpd.variables[1:] if len(old_cpd.variables) > 1 else None

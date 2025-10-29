@@ -91,7 +91,7 @@ def conditional_test(Vk, B, data_obs, data_exp, alpha=0.05, n_splits=5):
                 'class_weight': 'balanced'
             }
             #print("===")
-            print(f"Parents: {len(B)}")
+            """print(f"Parents: {len(B)}")
             print("Parent Class Occurrences (obs):")
             print(data_obs[B[0]].value_counts())
             print("Parent Class Occurrences (exp):")
@@ -101,7 +101,7 @@ def conditional_test(Vk, B, data_obs, data_exp, alpha=0.05, n_splits=5):
             print("Class Occurrences (exp):")
             print(data_exp[Vk].value_counts())
 
-            print(target_cardinality)
+            print(target_cardinality)"""
 
             for train_idx, test_idx in skf.split(combined_data, y):
                 X_reduced_train, X_reduced_test = X_reduced.iloc[train_idx], X_reduced.iloc[test_idx]
@@ -122,9 +122,9 @@ def conditional_test(Vk, B, data_obs, data_exp, alpha=0.05, n_splits=5):
                 )
                 pred_proba_full = model_full.predict_proba(X_full_test)
                 
-                print(log_loss(y_test, pred_proba_reduced, labels=np.arange(target_cardinality)))
+                """print(log_loss(y_test, pred_proba_reduced, labels=np.arange(target_cardinality)))
                 print(log_loss(y_test, pred_proba_full, labels=np.arange(target_cardinality)))
-                print()
+                print()"""
                 reduced_model_scores.append(log_loss(y_test, pred_proba_reduced, labels=np.arange(target_cardinality)))
                 full_model_scores.append(log_loss(y_test, pred_proba_full, labels=np.arange(target_cardinality)))
 
@@ -143,7 +143,7 @@ def conditional_test(Vk, B, data_obs, data_exp, alpha=0.05, n_splits=5):
                     alternative='less'
                 )
 
-            print(p_value)
+            #print(p_value)
             
             return p_value < alpha
 
@@ -151,11 +151,8 @@ def conditional_test(Vk, B, data_obs, data_exp, alpha=0.05, n_splits=5):
             return False
 
 def robust_orientation_test(Vi, Vk, B, data_obs, data_exp, alpha1=0.05, alpha2=0.05):
-    marg = False#marginal_test(Vk, data_obs, data_exp, alpha1)
-    #marginal_test(Vk, data_obs, data_exp, alpha1)
+    marg = marginal_test(Vk, data_obs, data_exp, alpha1)
     cond = conditional_test(Vk, B, data_obs, data_exp, alpha2)
-
-    #print(cond)
 
     if marg and cond:
         return None, marg, cond

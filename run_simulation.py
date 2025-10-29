@@ -52,7 +52,7 @@ def run_simulation(model, n_trials, nI_values, aI1_values, aI2_values, strategy=
 
                     start_orient = time.time()
                     _, oriented, num_exp, fallback_perc, marg_perc, cond_perc = orient_with_logic_and_experiments(
-                        essential_graph, obs_data, model, nI, aI1, aI2, strategy, true_edges
+                        essential_graph, obs_data, model, nI, aI1, aI2, strategy
                     )
 
                     #print(f"\nTrue: {sorted(true_edges)}")
@@ -100,7 +100,7 @@ if __name__ == "__main__":
 
     #'example', 'alarm', 'andes', 'asia', 'pathfinder', 'sachs', 'sprinkler', 'child', 'insurance', 'hailfinder', 'win95pts'
     #"minimax", "greedy", "entropy"
-    model_name = 'insurance'
+    model_name = 'sachs'
     strategy = "greedy"
     model = create_model(model_name)
     trials = 1
