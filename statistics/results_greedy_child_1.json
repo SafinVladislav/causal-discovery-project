@@ -3,13 +3,13 @@
         "nI": 5000,
         "aI1": 0.01,
         "aI2": 0.01,
-        "rop": 0.8,
+        "rop": 0.2,
         "m": true,
         "ropao": 1.0,
-        "avg_exp": 15,
-        "time_orient": 35.399117946624756,
+        "avg_exp": 18,
+        "time_orient": 10.722018480300903,
         "fallback_perc": 1.0,
         "marg_perc": 0.0,
-        "cond_perc": 0.44
+        "cond_perc": 0.10344827586206896
     }
 ]

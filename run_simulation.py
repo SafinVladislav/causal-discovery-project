@@ -52,10 +52,10 @@ def run_simulation(model, n_trials, nI_values, aI1_values, aI2_values, strategy=
 
                     start_orient = time.time()
                     _, oriented, num_exp, fallback_perc, marg_perc, cond_perc = orient_with_logic_and_experiments(
-                        essential_graph, obs_data, model, nI, aI1, aI2, strategy, true_edges=true_edges
-                    ) #!!!
+                        essential_graph, obs_data, model, nI, aI1, aI2, strategy, true_edges
+                    )
 
-                    print(f"\nTrue: {sorted(true_edges)}")
+                    #print(f"\nTrue: {sorted(true_edges)}")
                     #print(f"Oriented: {sorted(oriented)}")
 
                     end_orient = time.time()
@@ -90,38 +90,6 @@ def run_simulation(model, n_trials, nI_values, aI1_values, aI2_values, strategy=
 
     return simulation_results
 
-import numpy as np
-from scipy.stats import wilcoxon
-
-def run_conditional_test(data_a, data_b, data_name, alpha=0.05):
-    """
-    Performs a conditional statistical test (Wilcoxon Signed-Rank Test 
-    if symmetry is assumed) and reports which data is statistically bigger.
-    """
-    diff_scores = [a - b for a, b in zip(data_a, data_b)]
-    
-    aver_diff = np.average(diff_scores) 
-    
-    print("\n--- Statistical Test Result ---")
-    
-    stat, p_val = wilcoxon(data_a, data_b, zero_method='wilcox', alternative='two-sided') 
-    print(f"Test Used: Wilcoxon Signed-Rank Test")
-    print(f"Result: W={stat:.4f}, p={p_val:.4e}")
-    print(f"Average Differences (A - B): {aver_diff:.4f}")
-
-    # --- Logic for determining statistical difference and direction ---
-    if p_val < alpha:
-        # Result is statistically significant
-        if aver_diff > 0:
-            print(f"✅ Conclusion: {data_name} Data A is statistically larger than Data B (p < {alpha}).")
-        elif aver_diff < 0:
-            print(f"✅ Conclusion: {data_name} Data A is statistically smaller than Data B (p < {alpha}).")
-        else:
-            print(f"⚠️ Conclusion: {data_name} There is a statistically significant difference (p < {alpha}), but the average difference is zero.")
-    else:
-        # Result is NOT statistically significant
-        print(f"❌ Conclusion: {data_name} There is **no statistically significant difference** between Data A and Data B (p >= {alpha}).")
-
 # --- 5. Execution ---
 if __name__ == "__main__":
     warnings.filterwarnings("ignore")
@@ -132,7 +100,7 @@ if __name__ == "__main__":
 
     #'example', 'alarm', 'andes', 'asia', 'pathfinder', 'sachs', 'sprinkler', 'child', 'insurance', 'hailfinder', 'win95pts'
     #"minimax", "greedy", "entropy"
-    model_name = 'child'#'win95pts'
+    model_name = 'insurance'
     strategy = "greedy"
     model = create_model(model_name)
     trials = 1
@@ -218,3 +186,35 @@ if __name__ == "__main__":
     print("ANALYSIS OF ACCURACY (λ): Entropy vs. Minimax (Symmetry Check)")
     print("="*60)
     run_conditional_test(entropy_lambda, minimax_lambda, "Accuracy (λ)")"""
+
+import numpy as np
+from scipy.stats import wilcoxon
+
+def run_conditional_test(data_a, data_b, data_name, alpha=0.05):
+    """
+    Performs a conditional statistical test (Wilcoxon Signed-Rank Test 
+    if symmetry is assumed) and reports which data is statistically bigger.
+    """
+    diff_scores = [a - b for a, b in zip(data_a, data_b)]
+    
+    aver_diff = np.average(diff_scores) 
+    
+    print("\n--- Statistical Test Result ---")
+    
+    stat, p_val = wilcoxon(data_a, data_b, zero_method='wilcox', alternative='two-sided') 
+    print(f"Test Used: Wilcoxon Signed-Rank Test")
+    print(f"Result: W={stat:.4f}, p={p_val:.4e}")
+    print(f"Average Differences (A - B): {aver_diff:.4f}")
+
+    # --- Logic for determining statistical difference and direction ---
+    if p_val < alpha:
+        # Result is statistically significant
+        if aver_diff > 0:
+            print(f"✅ Conclusion: {data_name} Data A is statistically larger than Data B (p < {alpha}).")
+        elif aver_diff < 0:
+            print(f"✅ Conclusion: {data_name} Data A is statistically smaller than Data B (p < {alpha}).")
+        else:
+            print(f"⚠️ Conclusion: {data_name} There is a statistically significant difference (p < {alpha}), but the average difference is zero.")
+    else:
+        # Result is NOT statistically significant
+        print(f"❌ Conclusion: {data_name} There is **no statistically significant difference** between Data A and Data B (p >= {alpha}).")
