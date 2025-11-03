@@ -6,10 +6,10 @@
         "rop": 1.0,
         "m": true,
         "ropao": 1.0,
-        "avg_exp": 8,
-        "time_orient": 2.834961414337158,
+        "avg_exp": 11,
+        "time_orient": 9.096950054168701,
         "fallback_perc": 1.0,
-        "marg_perc": 0.6363636363636364,
-        "cond_perc": 0.36363636363636365
+        "marg_perc": 0.6875,
+        "cond_perc": 0.3125
     }
 ]

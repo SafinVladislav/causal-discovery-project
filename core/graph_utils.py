@@ -4,37 +4,25 @@ import itertools
 import networkx as nx
 import pandas as pd
 from collections import defaultdict
+import itertools
+from joblib import Parallel, delayed
+
+MAX_ATTEMPTS = 100
 
 def to_undirected_with_v_structures(directed_graph):
-    """
-    Convert a directed graph to an undirected graph, preserving v-structures as directed edges.
-    
-    Args:
-        directed_graph (nx.DiGraph): The input directed graph (e.g., from a pgmpy model).
-    
-    Returns:
-        nx.DiGraph: A graph where v-structure edges are directed, and other edges are undirected
-                   (represented by bidirectional edges).
-    """
-    # Initialize a new directed graph
     result_graph = nx.DiGraph()
     result_graph.add_nodes_from(directed_graph.nodes())
-    
-    # Find all v-structures (X -> Y <- Z)
+
     v_structures = []
     for y in directed_graph.nodes():
-        # Get parents (nodes with edges pointing to y, excluding successors)
         parents = list(set(directed_graph.predecessors(y)) - set(directed_graph.successors(y)))
         if len(parents) >= 2:
-            import itertools
             for x, z in itertools.combinations(parents, 2):
                 if not directed_graph.has_edge(x, z) and not directed_graph.has_edge(z, x):
                     v_structures.append((x, y, z))
     
-    # Create undirected edges for all edges in the input graph
     undirected_edges = set()
     for u, v in directed_graph.edges():
-        # Skip edges that are part of v-structures (to be added as directed later)
         is_v_structure_edge = False
         for x, y, z in v_structures:
             if (u == x and v == y) or (u == z and v == y) or (u == y and v == x) or (u == y and v == z):
@@ -42,12 +30,10 @@ def to_undirected_with_v_structures(directed_graph):
                 break
         if not is_v_structure_edge:
             undirected_edges.add((u, v))
-            undirected_edges.add((v, u))  # Add both directions for undirected
+            undirected_edges.add((v, u))
     
-    # Add undirected edges (bidirectional) to the result graph
     result_graph.add_edges_from(undirected_edges)
     
-    # Add directed edges for v-structures
     for x, y, z in v_structures:
         result_graph.add_edge(x, y)
         result_graph.add_edge(z, y)
@@ -57,12 +43,16 @@ def to_undirected_with_v_structures(directed_graph):
 def find_undirected_edges(graph):
     undirected = []
     for u, v in graph.edges():
+        if u == v:
+            continue
         if graph.has_edge(v, u):
             undirected.append((u, v))
     return undirected
 
 def has_directed_cycle(graph, new_oriented_edge):
     u, v = new_oriented_edge
+    if graph.has_edge(v, u):
+        return False
 
     visited = set()
     stack = [v]
@@ -78,6 +68,9 @@ def has_directed_cycle(graph, new_oriented_edge):
 
 def has_v_structure(graph, new_oriented_edge):
     u, v = new_oriented_edge
+    if graph.has_edge(v, u):
+        return False
+
     parents = list(set(graph.predecessors(v)) - set(graph.successors(v)) - {u})
     if len(parents) >= 1:
         for z in parents:
@@ -138,8 +131,6 @@ def get_chain_components(graph):
     node_components = list(nx.connected_components(undirected_graph))
     return [nx.DiGraph(undirected_graph.subgraph(nodes).copy()) for nodes in node_components]
 
-MAX_ATTEMPTS = 100
-
 def orient_random_restarts(graph):
     def set_orientation(g, orientation):
         u, v = orientation
@@ -164,15 +155,11 @@ def orient_random_restarts(graph):
 
     return None
 
-def generate_dag(graph):
-    return orient_random_restarts(graph.copy())
-
-from joblib import Parallel, delayed
 def sample_dags(graph, n_samples):
-    def generate_one():
-        return generate_dag(graph)
-    dags = Parallel(n_jobs=-1)(delayed(generate_one)() for _ in range(n_samples))
-    return [dag for dag in dags if dag]
+    def generate_dag():
+        return orient_random_restarts(graph)
+    dags = Parallel(n_jobs=-1)(delayed(generate_dag)() for _ in range(n_samples))
+    return [dag for dag in dags if dag is not None]
 
 def check_if_estimated_correctly(estimated, true_graph):
     if set(map(tuple, map(sorted, estimated.edges()))) != set(map(tuple, map(sorted, true_graph.edges()))):
