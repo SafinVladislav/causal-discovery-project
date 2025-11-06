@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 from networkx.drawing.nx_pydot import graphviz_layout
 import networkx as nx
+import os
 
 def visualize_graphs(essential_graph, oriented_graph, pic_path):
     fig, ax = plt.subplots(nrows=1, ncols=2, figsize=(16, 8))
@@ -32,6 +33,10 @@ def visualize_graphs(essential_graph, oriented_graph, pic_path):
     ax[1].set_title('Oriented Graph')
 
     try:
+        directory = os.path.dirname(pic_path)
+        if directory:
+            os.makedirs(directory, exist_ok=True)
+            
         plt.savefig(pic_path, bbox_inches='tight')
         print(f"Graph visualization successfully saved to: {pic_path}")
     except Exception as e:

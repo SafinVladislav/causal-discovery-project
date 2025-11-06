@@ -70,21 +70,33 @@ def create_model(model_name: str):
         pgmpy_model.add_cpds(cpd_v1, cpd_v2, cpd_v3, cpd_v4)
         return pgmpy_model
     
+    model_name_map = {
+      'munin_subnetwork_1': ('https://www.bnlearn.com/bnrepository/munin4/munin1.bif.gz', 'munin1.bif'), 
+      'munin_full_network': ('https://www.bnlearn.com/bnrepository/munin/munin.bif.gz', 'munin.bif'), 
+      'munin_subnetwork_2': ('https://www.bnlearn.com/bnrepository/munin4/munin2.bif.gz', 'munin2.bif'),
+      'munin_subnetwork_3': ('https://www.bnlearn.com/bnrepository/munin4/munin3.bif.gz', 'munin3.bif'),
+      'munin_subnetwork_4': ('https://www.bnlearn.com/bnrepository/munin4/munin4.bif.gz', 'munin4.bif')
+    }
+    if model_name in model_name_map:
+        bif_url, bif_filename = model_name_map[model_name]
     else:
         bif_url = f'https://www.bnlearn.com/bnrepository/{model_name}/{model_name}.bif.gz'
         bif_filename = f'{model_name}.bif'
-        bif_path = LOADED_MODELS_DIR / bif_filename
-        if not os.path.exists(bif_path):
-            print(f"Loading {model_name} via BIF download...")
-            response = requests.get(bif_url)
-            response.raise_for_status()
-            print(f"Decompressing GZIP content to {bif_filename}...")
-            decompressed_content = gzip.decompress(response.content)
-            with open(bif_path, 'wb') as f:
-                f.write(decompressed_content)
-        
-        reader = BIFReader(str(bif_path))
-        pgmpy_model = reader.get_model()
+    if LOADED_MODELS_DIR:
+        os.makedirs(LOADED_MODELS_DIR, exist_ok=True)
+    bif_path = LOADED_MODELS_DIR / bif_filename
+
+    if not os.path.exists(bif_path):
+        print(f"Loading {model_name} via BIF download...")
+        response = requests.get(bif_url)
+        response.raise_for_status()
+        print(f"Decompressing GZIP content to {bif_filename}...")
+        decompressed_content = gzip.decompress(response.content)
+        with open(bif_path, 'wb') as f:
+            f.write(decompressed_content)
+    
+    reader = BIFReader(str(bif_path))
+    pgmpy_model = reader.get_model()
 
     with open(model_path, 'wb') as f:
         pickle.dump(pgmpy_model, f)

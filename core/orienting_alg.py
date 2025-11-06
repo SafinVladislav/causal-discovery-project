@@ -10,6 +10,11 @@ def orient_with_logic_and_experiments(graph, observational_data, data_generator,
     fallback_interventions = 0 
 
     chain_components = get_chain_components(temp_graph)
+
+    #print(f"Components: {len(chain_components)}")
+    #for comp in chain_components:
+    #    print(len(comp.nodes()))
+
     for num, comp in enumerate(chain_components):
         intervened_in_comp = set()
 
@@ -19,7 +24,9 @@ def orient_with_logic_and_experiments(graph, observational_data, data_generator,
             if not comp_undirected:
                 break
 
+            #print("Start")
             variable_to_intervene, fallback = choose_intervention_variable(comp, intervened_in_comp, strategy=strategy)
+            #print("End")
             if variable_to_intervene is None:
                 break
             total_interventions += 1

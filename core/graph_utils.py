@@ -131,7 +131,9 @@ def get_chain_components(graph):
     node_components = list(nx.connected_components(undirected_graph))
     return [nx.DiGraph(undirected_graph.subgraph(nodes).copy()) for nodes in node_components]
 
+attempts = 0
 def orient_random_restarts(graph):
+    global attempts
     def set_orientation(g, orientation):
         u, v = orientation
         g.add_edge(u, v)
@@ -145,7 +147,7 @@ def orient_random_restarts(graph):
             else:
                 orientation = (b, a)
             set_orientation(g, orientation)
-
+            
     for attempt in range(1, MAX_ATTEMPTS + 1):
         temp = graph.copy()
         random_orient_all(temp)
@@ -154,12 +156,16 @@ def orient_random_restarts(graph):
             return temp
 
     return None
-
+    
+WARNING_THRESHOLD = 0.05
 def sample_dags(graph, n_samples):
     def generate_dag():
         return orient_random_restarts(graph)
     dags = Parallel(n_jobs=-1)(delayed(generate_dag)() for _ in range(n_samples))
-    return [dag for dag in dags if dag is not None]
+    valid_dags = [dag for dag in dags if dag is not None]
+    if (n_samples > 0) and (len(valid_dags) / n_samples < WARNING_THRESHOLD):
+        print(f"For n_samples = {n_samples} less then {WARNING_THRESHOLD * 100} percent of valid dags generated. Consider using approaches not requiring sampling (greedy, for example).")
+    return valid_dags
 
 def check_if_estimated_correctly(estimated, true_graph):
     if set(map(tuple, map(sorted, estimated.edges()))) != set(map(tuple, map(sorted, true_graph.edges()))):

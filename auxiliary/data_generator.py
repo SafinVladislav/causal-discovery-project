@@ -115,3 +115,6 @@ class DataGenerator:
         true_graph = nx.DiGraph(self.model)
         true_edges = set(true_graph.edges())
         return len(oriented & true_edges) / len(oriented) if len(oriented) > 0 else 1.0
+
+    def visualize(self, oriented_graph, pic_dir):
+        visualize_graphs(nx.DiGraph(self.model), oriented_graph, pic_dir)

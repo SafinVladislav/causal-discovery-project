@@ -15,7 +15,6 @@ import os
 
 from core.orienting_alg import orient_with_logic_and_experiments
 from core.graph_utils import check_if_estimated_correctly, find_undirected_edges, to_undirected_with_v_structures
-from auxiliary.visualize import visualize_graphs
 from auxiliary.data_generator import DataGenerator
 
 import logging
@@ -59,14 +58,15 @@ def run_simulation(data_generator, n_trials, nI, aI1, aI2, strategy):
     return simulation_results
 
 if __name__ == "__main__":
-    #'example', 'example_2', 'asia', 'cancer', 'earthquake', 'sachs', 'survey', 'alarm', 'barley', 'child', 'insurance', 'mildew', 'water', 'hailfinder', 'hepar2', 'win95pts', 'andes', 'diabetes', 'link', 'munin_subnetwork_1', 'pathfinder', 'pigs', 'munin_full_network', 'munin_subnetwork_2', 'munin_subnetwork_3', 'munin_subnetwork_4'
+    #'example', 'example_2', 'asia', 'cancer', 'earthquake', 'sachs', 'survey', 'alarm', 'barley', 'child', 'insurance', 'mildew', 'water', 'hailfinder', 'hepar2', 'win95pts', 'andes', 'munin_subnetwork_1'
+    #slow: 'diabetes', 'link', 'pathfinder', 'munin_full_network', 'munin_subnetwork_2', 'munin_subnetwork_3', 'munin_subnetwork_4'
     #"minimax", "greedy", "entropy"
-    trials = 1
+    trials = 10
 
     BOLD = '\033[1m'
     END = '\033[0m'
 
-    for model_name in ['asia']:#'link', 'munin_subnetwork_1', 'pathfinder', 'pigs']:
+    for model_name in ['pigs', 'munin_subnetwork_1']:
         print(f"{BOLD}\n{model_name.upper()}{END}")
         
         data_generator = DataGenerator(model_name)
@@ -86,4 +86,4 @@ if __name__ == "__main__":
             
             print(f"{BOLD}{'Total':<8}{'-':<8}{'-':<8}{total_recall:<8.2f}{'-':<8}{total_precision:<8.2f}{total_avg_exp:<10.2f}{total_time_orient:<15.4f}{total_fallback_perc:<15.4f}{END}")
 
-            #visualize_graphs(nx.DiGraph(model), results[0]['oriented_graph'], RELATIVE_VIS_DIR / f"{model_name}.png")
+            data_generator.visualize(results[0]['oriented_graph'], RELATIVE_VIS_DIR / f"{model_name}.png")
