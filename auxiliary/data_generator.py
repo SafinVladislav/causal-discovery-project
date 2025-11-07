@@ -107,8 +107,8 @@ class DataGenerator:
         true_edges = set(true_graph.edges())
         return to_undirected_with_v_structures(true_graph)
 
-    def recall(self, oriented):
-        undirected_edges = find_undirected_edges(self.get_essential_graph())
+    def recall(self, essential_graph, oriented):
+        undirected_edges = find_undirected_edges(essential_graph)
         return len(oriented) / (len(undirected_edges) / 2) if len(undirected_edges) > 0 else 1.0
 
     def precision(self, oriented):
@@ -116,5 +116,5 @@ class DataGenerator:
         true_edges = set(true_graph.edges())
         return len(oriented & true_edges) / len(oriented) if len(oriented) > 0 else 1.0
 
-    def visualize(self, oriented_graph, pic_dir):
-        visualize_graphs(nx.DiGraph(self.model), oriented_graph, pic_dir)
+    def visualize(self, pc_essential_graph, oriented_graph, pic_dir):
+        visualize_graphs(nx.DiGraph(self.model), pc_essential_graph, oriented_graph, pic_dir)

@@ -3,13 +3,13 @@ from networkx.drawing.nx_pydot import graphviz_layout
 import networkx as nx
 import os
 
-def visualize_graphs(essential_graph, oriented_graph, pic_path):
-    fig, ax = plt.subplots(nrows=1, ncols=2, figsize=(16, 8))
+def visualize_graphs(true_graph, pc_essential_graph, oriented_graph, pic_path):
+    fig, ax = plt.subplots(nrows=1, ncols=3, figsize=(24, 8))
     
-    pos = graphviz_layout(essential_graph, prog='dot')
+    pos = graphviz_layout(true_graph, prog='dot')
 
     nx.draw(
-        essential_graph,
+        true_graph,
         pos=pos,
         with_labels=True,
         node_size=2000,
@@ -18,7 +18,19 @@ def visualize_graphs(essential_graph, oriented_graph, pic_path):
         font_weight='bold',
         ax=ax[0]
     )
-    ax[0].set_title('Essential Graph')
+    ax[0].set_title('True Graph')
+
+    nx.draw(
+        pc_essential_graph,
+        pos=pos,
+        with_labels=True,
+        node_size=2000,
+        node_color='lightgreen',
+        font_size=12,
+        font_weight='bold',
+        ax=ax[1]
+    )
+    ax[1].set_title('Essential Graph')
 
     nx.draw(
         oriented_graph,
@@ -28,9 +40,9 @@ def visualize_graphs(essential_graph, oriented_graph, pic_path):
         node_color='lightcoral',
         font_size=12,
         font_weight='bold',
-        ax=ax[1]
+        ax=ax[2]
     )
-    ax[1].set_title('Oriented Graph')
+    ax[2].set_title('Oriented Graph')
 
     try:
         directory = os.path.dirname(pic_path)
