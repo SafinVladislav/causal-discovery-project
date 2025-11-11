@@ -56,7 +56,7 @@ class TestChooseInterventionVariable(unittest.TestCase):
         self.assertEqual(node, 'A')  # A has highest count
         self.assertEqual(fallback, 0)  # No fallback
 
-    def test_greedy_strategy_with_ties_picks_first_max(self):
+    def test_greedy_strategy_with_ties_picks_max(self):
         """Tests greedy with ties: picks one of the max-degree nodes (deterministic due to seed)."""
         graph = nx.DiGraph()
         # Undirected: A-B, C-D (A,B,C,D all degree 1)
@@ -65,34 +65,29 @@ class TestChooseInterventionVariable(unittest.TestCase):
 
         node, fallback = choose_intervention_variable(graph, intervened, "greedy")
         # With seed 42, max() on dict keys should pick 'A' (sorted order)
-        self.assertEqual(node, 'A')
+        self.assertIn(node, {'A', 'B', 'C', 'D'})
         self.assertEqual(fallback, 0)
 
     def test_greedy_strategy_some_nodes_intervened(self):
         """Tests greedy ignoring intervened nodes."""
         graph = nx.DiGraph()
         graph.add_edges_from([('A', 'B'), ('B', 'A'), ('B', 'C'), ('C', 'B'), ('C', 'D'), ('D', 'C')])
-        intervened = {'A'}  # A intervened, so B or C (both degree 2, but B first?)
+        intervened = {'C'}  # A intervened, so B or C (both degree 2, but B first?)
 
         node, fallback = choose_intervention_variable(graph, intervened, "greedy")
         
-        self.assertIn(node, {'B', 'C'})  # Tie, but with seed, assume 'B'
+        self.assertIn(node, {'B'})  # Tie, but with seed, assume 'B'
         self.assertEqual(fallback, 0)
 
-    import unittest
+import unittest
 from unittest.mock import patch, MagicMock
 import networkx as nx
-
 from core.intervention import choose_intervention_variable
-
-class TestChooseInterventionVariable(unittest.TestCase):
-    import random
+import random
 import unittest
 from collections import Counter
 from unittest.mock import MagicMock, patch
-
 import networkx as nx
-
 from core.intervention import choose_intervention_variable
 
 class TestChooseInterventionVariable(unittest.TestCase):
@@ -167,26 +162,81 @@ class TestChooseInterventionVariable(unittest.TestCase):
         self.assertEqual(fallback, 0)               # sampling succeeded
         # minimax picks the node with the smallest *maximum* orientation probability.
         # Both A and B have max prob = 0.5, C and D have 0.8 → A (first alphabetically) is chosen.
-        self.assertEqual(node, "A")
+        self.assertIn(node, {'A', 'B'})
 
-    @patch('core.intervention.sample_dags')
+    @patch("core.intervention.sample_dags")
     def test_entropy_strategy_with_mock_sampling(self, mock_sample_dags):
-        """Tests entropy strategy with mocked sampling: chooses node maximizing entropy."""
-        graph = nx.DiGraph()
-        graph.add_edges_from([('A', 'B'), ('B', 'A')])  # Simple undirected A-B
-        intervened = set()
+      """
+      Tests the entropy strategy with fully-controlled sampling.
 
-        # Test fallback
-        mock_sample_dags.return_value = []  # Low success
-        node, fallback = choose_intervention_variable(graph, intervened, "entropy")
-        self.assertEqual(fallback, 1)
+      Graph: A <-> B   and   C <-> D   (two independent undirected edges)
 
-        # Successful: assume 'A' has high entropy (balanced), 'B' low
-        mock_sample_dags.return_value = [MagicMock() for _ in range(800)]
-        # Mock to have high entropy for 'A'
-        node, fallback = choose_intervention_variable(graph, intervened, "entropy")
-        self.assertIsNotNone(node)
-        self.assertEqual(fallback, 0)
+      * Sampling fails  → fallback = 1
+      * Sampling succeeds
+          - A-B is balanced  (50 % A→B, 50 % B→A)   → entropy ≈ 0.693
+          - C-D is unbalanced (80 % C→D, 20 % D→C) → entropy ≈ 0.500
+      entropy must pick a node from the balanced component (A or B) 
+      since higher entropy indicates more uncertainty.
+      """
+      random.seed(42)                     # reproducible mock DAGs
+      graph = nx.DiGraph()
+      graph.add_edges_from([("A", "B"), ("B", "A"), ("C", "D"), ("D", "C")])
+      intervened = set()
+
+      # -------------------------------------------------
+      # 1. Sampling failure → fallback to greedy
+      # -------------------------------------------------
+      mock_sample_dags.return_value = []               # 0 / 1000 < 0.7
+      node, fallback = choose_intervention_variable(graph, intervened, "entropy")
+      self.assertEqual(fallback, 1)                    # fallback flag
+
+      # -------------------------------------------------
+      # 2. Successful sampling with controlled orientations
+      # -------------------------------------------------
+      N = 800                                          # 800 / 1000 = 0.8 > THRESHOLD
+      mock_dags = []
+
+      # Build 800 DAG mocks:
+      #   - first 400 : A→B   (and C→D for the first 640 of the 800)
+      #   - next  400 : B→A
+      #   - last  160 : D→C   (so C-D is 640 : 160 → 80 % / 20 %)
+      for i in range(N):
+          dag = MagicMock()
+
+          # ---- orientation of A-B ----
+          if i < N // 2:                     # first half: A→B
+              ab_u, ab_v = "A", "B"
+          else:                               # second half: B→A
+              ab_u, ab_v = "B", "A"
+
+          # ---- orientation of C-D ----
+          if i < int(N * 0.8):               # 80 % of samples
+              cd_u, cd_v = "C", "D"
+          else:                               # 20 % of samples
+              cd_u, cd_v = "D", "C"
+
+          # side_effect: return True only for the chosen direction
+          def _has_edge(u, v):
+              if {u, v} == {"A", "B"}:
+                  return u == ab_u and v == ab_v
+              if {u, v} == {"C", "D"}:
+                  return u == cd_u and v == cd_v
+              return False
+
+          dag.has_edge.side_effect = _has_edge
+          mock_dags.append(dag)
+
+      mock_sample_dags.return_value = mock_dags
+
+      node, fallback = choose_intervention_variable(graph, intervened, "entropy")
+
+      # -------------------------------------------------
+      # 3. Assertions
+      # -------------------------------------------------
+      self.assertEqual(fallback, 0)               # sampling succeeded
+      # entropy picks the node with the highest entropy (most uncertainty).
+      # A-B has entropy ≈ 0.693, C-D has entropy ≈ 0.500 → A or B is chosen.
+      self.assertIn(node, {'A', 'B'})
 
     def test_fallback_to_greedy_when_sampling_fails(self):
         """Tests that low sampling success falls back to greedy and returns fallback=1."""
@@ -205,8 +255,7 @@ class TestChooseInterventionVariable(unittest.TestCase):
         graph.add_edges_from([('A', 'B'), ('B', 'A'), ('C', 'D')])  # C->D directed, A-B undirected
         intervened = set()
         node, fallback = choose_intervention_variable(graph, intervened, "greedy")
-        self.assertEqual(node, 'A')  # Or 'B', but not 'C' or 'D' as they have no undirected adj
-        # D has adj to C, but if directed, find_undirected_edges only if bidirectional, here only ('C','D'), no ('D','C'), so no undirected for C-D
+        self.assertIn(node, {'A', 'B'})
 
 # Standard runner
 if __name__ == '__main__':

@@ -6,6 +6,7 @@ import numpy as np
 from pgmpy.models import BayesianNetwork, BayesianModel
 from pgmpy.factors.discrete import TabularCPD
 from pgmpy.sampling import BayesianModelSampling
+import random
 
 from core.graph_utils import find_undirected_edges, sample_dags
 
@@ -27,7 +28,12 @@ def choose_intervention_variable(graph, intervened, strategy):
 
     if strategy == "greedy":
         node_counts = Counter(u for u, _ in undirected_edges if u in nodes_to_consider)
-        return max(node_counts, key=node_counts.get, default=None), 0
+        if not node_counts:
+            return None, 0
+        max_count = max(node_counts.values())
+        candidates = [node for node, count in node_counts.items() if count == max_count]
+        chosen_node = random.choice(candidates)
+        return chosen_node, 0
 
     adj_undirected = {node: {tuple(sorted(e)) for e in undirected_edges if node in e} 
                       for node in nodes_to_consider}
@@ -75,5 +81,11 @@ def choose_intervention_variable(graph, intervened, strategy):
     if not node_metrics:
         return None, None
     
-    node = (max if strategy == "entropy" else min)(node_metrics, key=node_metrics.get)
-    return node, 0
+    # Find optimal metric value based on strategy
+    optimal_func = max if strategy == "entropy" else min
+    best_metric = optimal_func(node_metrics.values())
+    
+    # Collect all nodes with the optimal metric and choose randomly
+    candidates = [node for node, metric in node_metrics.items() if metric == best_metric]
+    chosen_node = random.choice(candidates)
+    return chosen_node, 0

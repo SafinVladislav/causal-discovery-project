@@ -129,7 +129,7 @@ def get_chain_components(graph):
     undirected_graph = nx.Graph()
     undirected_graph.add_edges_from(find_undirected_edges(graph))
     node_components = list(nx.connected_components(undirected_graph))
-    return [nx.DiGraph(undirected_graph.subgraph(nodes).copy()) for nodes in node_components]
+    return [nx.DiGraph(graph.subgraph(nodes).copy()) for nodes in node_components]
 
 attempts = 0
 def orient_random_restarts(graph):

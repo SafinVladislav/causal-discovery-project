@@ -95,6 +95,7 @@ def run_simulation(data_generator, trials, nIs, aI1s, aI2s, strategy, pc_sl):
                         'num_correct_essential_graphs': 0,
                         'time_orient': 0.0,
                         'undir': 0.0,
+                        'oriented': 0.0,
                         True:  {'experiments': 0.0, 'recall': 0.0, 'precision': 0.0},
                         False: {'experiments': 0.0, 'recall': 0.0, 'precision': 0.0}
                     }
@@ -107,14 +108,16 @@ def run_simulation(data_generator, trials, nIs, aI1s, aI2s, strategy, pc_sl):
                         start_pc = time.time()
                         pc_estimator = PC(data=obs_data)
                         with io.capture_output():
-                            essential_graph = nx.DiGraph(pc_estimator.estimate(
+                            essential_graph = data_generator.get_essential_graph()
+                            """essential_graph = nx.DiGraph(pc_estimator.estimate(
                                 variant='stable', ci_test='chi_square',
                                 significance_level=pc_sl, return_type="cpdag"
-                            ))
+                            ))"""
+
                         end_pc = time.time()
                         time_pc = end_pc - start_pc
                         some_essential_graph = essential_graph
-                        perf['undir'] += len(find_undirected_edges(essential_graph))
+                        perf['undir'] += len(find_undirected_edges(essential_graph)) / 2
                         perf['time_pc'] += time_pc
 
                         is_correct = check_if_estimated_correctly(essential_graph, data_generator.get_essential_graph())
@@ -128,6 +131,7 @@ def run_simulation(data_generator, trials, nIs, aI1s, aI2s, strategy, pc_sl):
                         time_orient = end_orient - start_orient
                         some_oriented_graph = oriented_graph
                         perf['time_orient'] += time_orient
+                        perf['oriented'] += len(oriented)
 
                         perf[is_correct]['experiments'] += num_exp
                         perf[is_correct]['recall'] += data_generator.recall(essential_graph, oriented)
@@ -137,6 +141,7 @@ def run_simulation(data_generator, trials, nIs, aI1s, aI2s, strategy, pc_sl):
 
                     corr_perc = perf['num_correct_essential_graphs'] / trials if trials > 0 else float('-inf')
                     undir = perf['undir'] / trials if trials > 0 else float('-inf')
+                    oriented = perf['oriented'] / trials if trials > 0 else float('-inf')
                     exp = (perf[0]['experiments'] + perf[1]['experiments']) / trials if trials > 0 else -float('-inf')
                     exp_corr = perf[1]['experiments'] / perf['num_correct_essential_graphs'] if perf['num_correct_essential_graphs'] > 0 else float('-inf')
                     time_pc = perf['time_pc'] / trials if trials > 0 else float('-inf')
@@ -150,6 +155,7 @@ def run_simulation(data_generator, trials, nIs, aI1s, aI2s, strategy, pc_sl):
                         'nI': nI, 'aI1': aI1, 'aI2': aI2,
                         'corr_perc': corr_perc,
                         'undir': undir,
+                        'oriented': oriented,
                         'exp': exp,
                         'exp_corr': exp_corr,
                         'time_pc': time_pc,
@@ -173,17 +179,17 @@ if __name__ == "__main__":
     BOLD = '\033[1m'
     END = '\033[0m'
 
-    for model_name in ['asia']:
+    for model_name in ['munin_subnetwork_1']:
         print(f"{BOLD}\n{model_name.upper()}{END}")
         
         data_generator = DataGenerator(model_name)
 
         #tune_pc_parameters(data_generator, 3, [500, 1000, 2000, 5000, 10000, 20000, 50000], [0.001, 0.005, 0.01, 0.05, 0.1, 0.3])
         for strategy in ["greedy"]:#, "entropy", "minimax"]:
-            results = run_simulation(data_generator, trials, [1000], [0.01], [0.01], strategy, 0.005)
+            results = run_simulation(data_generator, trials, [3000], [0.01], [0.01], strategy, 0.005)
 
             print("--- Simulation Results ---")
-            print(f"{'nI':<8}{'aI1':<8}{'aI2':<8}{'corr_perc':<12}{'undir':<8}{'recall':<8}{'recall_corr':<15}"
+            print(f"{'nI':<8}{'aI1':<8}{'aI2':<8}{'corr_perc':<12}{'undir':<8}{'oriented':<12}{'recall':<8}{'recall_corr':<15}"
                   f"{'prec':<8}{'prec_corr':<12}{'exp':<10}{'exp_corr':<12}"
                   f"{'time_pc':<12}{'time_orient':<15}")
 
@@ -193,6 +199,7 @@ if __name__ == "__main__":
                       f"{res['aI2']:<8.2f}"
                       f"{res['corr_perc']:<12.2f}"
                       f"{res['undir']:<8.2f}"
+                      f"{res['oriented']:<12.2f}"
                       f"{res['recall']:<8.3f}"
                       f"{res['recall_corr']:<15.3f}"
                       f"{res['prec']:<8.3f}"
@@ -203,5 +210,5 @@ if __name__ == "__main__":
                       f"{res['time_orient']:<15.4f}"
                       )
 
-            data_generator.visualize(results[0]['essential_graph'], results[0]['oriented_graph'], RELATIVE_VIS_DIR / f"{model_name}.png")
+            data_generator.visualize(results[0]['essential_graph'], results[0]['oriented_graph'], RELATIVE_VIS_DIR / f"{model_name}")
         

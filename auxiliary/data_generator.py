@@ -104,7 +104,6 @@ class DataGenerator:
     
     def get_essential_graph(self):
         true_graph = nx.DiGraph(self.model)
-        true_edges = set(true_graph.edges())
         return to_undirected_with_v_structures(true_graph)
 
     def recall(self, essential_graph, oriented):
