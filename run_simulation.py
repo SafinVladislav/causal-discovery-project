@@ -179,7 +179,7 @@ if __name__ == "__main__":
     BOLD = '\033[1m'
     END = '\033[0m'
 
-    for model_name in ['munin_subnetwork_1']:
+    for model_name in ['alarm']:#'munin_subnetwork_1']:
         print(f"{BOLD}\n{model_name.upper()}{END}")
         
         data_generator = DataGenerator(model_name)

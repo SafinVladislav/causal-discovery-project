@@ -11,6 +11,7 @@ from statsmodels.tools.sm_exceptions import PerfectSeparationError
 from collections import Counter
 from sklearn.model_selection import StratifiedKFold
 from sklearn.utils.class_weight import compute_class_weight
+from scipy.stats import norm
 
 def marginal_test(Vk, data_obs, data_exp, alpha):
     obs_counts = data_obs[Vk].value_counts().sort_index()
@@ -31,123 +32,45 @@ def marginal_test(Vk, data_obs, data_exp, alpha):
 
     return False if not is_chi2_valid else p_value < alpha
 
-"""def should_keep_full_model(full_scores, reduced_scores, alpha):
-    if np.allclose(np.array(full_scores) - np.array(reduced_scores), 0):
-        print("→ IDENTICAL SCORES. Keep reduced model.")
-        return True
-    
-    t_stat, p_value = ttest_rel(full_scores, reduced_scores, alternative='less')
-    
-    print(f"→ p-value: {p_value:.2e}")
-    
-    return p_value < alpha
-
-def conditional_test(Vk, B, data_obs, data_exp, alpha, n_splits):
-    if not B:
-        return False
-    if len(data_obs) < 50 or len(data_exp) < 50:
-        return False
-
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore", category=UserWarning)
-        warnings.simplefilter("ignore", category=FutureWarning)
-        try:
-            combined_data = pd.concat([
-                data_obs.assign(dataset_group=0),
-                data_exp.assign(dataset_group=1)
-            ]).copy()
-
-            y, class_names = pd.factorize(combined_data[Vk])
-
-            target_cardinality = len(class_names)
-            if target_cardinality < 2:
-                return False
-
-            categorical_features_B = [
-                col for col in B 
-                if combined_data[col].dtype in ['object', 'category', 'bool']
-            ]
-            
-            features_reduced = B
-            features_full = B + ['dataset_group']
-            
-            cat_features_reduced = categorical_features_B
-            cat_features_full = categorical_features_B + ['dataset_group']
-
-            for col in cat_features_full:
-                combined_data[col] = combined_data[col].astype('category')
-
-            X_reduced = combined_data[features_reduced]
-            X_full = combined_data[features_full]
-
-            skf = StratifiedKFold(n_splits=n_splits, shuffle=True)
-            
-            reduced_model_scores = []
-            full_model_scores = []
-
-            lgbm_params = {
-                'objective': 'binary' if target_cardinality == 2 else 'multiclass',
-                'num_class': target_cardinality if target_cardinality > 2 else 1,
-                'n_estimators': 30,
-                'learning_rate': 0.1,
-                'verbose': -1,
-                'n_jobs': -1,
-                'class_weight': 'balanced'
-            }
-
-            for train_idx, test_idx in skf.split(combined_data, y):
-                X_reduced_train, X_reduced_test = X_reduced.iloc[train_idx], X_reduced.iloc[test_idx]
-                X_full_train, X_full_test = X_full.iloc[train_idx], X_full.iloc[test_idx]
-                y_train, y_test = y[train_idx], y[test_idx]
-
-                model_reduced = lgb.LGBMClassifier(**lgbm_params)
-                model_reduced.fit(
-                    X_reduced_train, y_train,
-                    categorical_feature=cat_features_reduced
-                )
-                pred_proba_reduced = model_reduced.predict_proba(X_reduced_test)
-
-                model_full = lgb.LGBMClassifier(**lgbm_params)
-                model_full.fit(
-                    X_full_train, y_train,
-                    categorical_feature=cat_features_full
-                )
-                pred_proba_full = model_full.predict_proba(X_full_test)
-
-                rms = log_loss(y_test, pred_proba_reduced, labels=np.arange(target_cardinality))
-                fms = log_loss(y_test, pred_proba_full, labels=np.arange(target_cardinality))
-                
-                print(rms)
-                print(fms)
-                print()
-
-                reduced_model_scores.append(rms)
-                full_model_scores.append(fms)
-
-            if len(full_model_scores) < 2:
-                return False
-            
-            return should_keep_full_model(full_model_scores, reduced_model_scores, alpha)
-
-        except (np.linalg.LinAlgError, ValueError, IndexError, PerfectSeparationError):
-            return False"""
-
-import numpy as np
-import pandas as pd
-from scipy.stats import ttest_ind
-from sklearn.model_selection import StratifiedKFold
-from sklearn.metrics import log_loss
-import lightgbm as lgb
-import warnings
-
-def should_use_separate_models(mixed_scores, separate_scores, alpha):
-    if np.allclose(np.array(mixed_scores), np.array(separate_scores[:len(mixed_scores)])) and np.allclose(np.array(mixed_scores), np.array(separate_scores[len(mixed_scores):])):
+def should_use_separate_models(mixed_scores, obs_scores, exp_scores, n_obs, n_exp, alpha):
+    # Check if scores are effectively identical across models
+    if np.allclose(np.array(mixed_scores), np.array(obs_scores)) and np.allclose(np.array(mixed_scores), np.array(exp_scores)):
         print("→ IDENTICAL SCORES. Use mixed model.")
         return False
     
-    #print(f"Mixed: {mixed_scores}")
-    #print(f"Separate: {separate_scores}")
-    t_stat, p_value = ttest_ind(mixed_scores, separate_scores, alternative='greater', equal_var=False)
+    mean_mixed = np.mean(mixed_scores)
+    mean_obs = np.mean(obs_scores)
+    mean_exp = np.mean(exp_scores)
+    
+    N = n_obs + n_exp
+    w_obs = n_obs / N
+    w_exp = n_exp / N
+    weighted_separate = w_obs * mean_obs + w_exp * mean_exp
+    
+    d = mean_mixed - weighted_separate
+    
+    print(f"→ Difference (mixed - weighted separate): {d:.5f}")
+    
+    if d <= 0:
+        p_value = 1.0
+    else:
+        # Estimate variances of the means
+        if len(mixed_scores) < 2 or len(obs_scores) < 2 or len(exp_scores) < 2:
+            return False  # Not enough splits for variance estimate
+        
+        var_mixed = np.var(mixed_scores, ddof=1) / len(mixed_scores)
+        var_obs = np.var(obs_scores, ddof=1) / len(obs_scores)
+        var_exp = np.var(exp_scores, ddof=1) / len(exp_scores)
+        
+        var_weighted = w_obs**2 * var_obs + w_exp**2 * var_exp
+        
+        se_d = np.sqrt(var_mixed + var_weighted)  # Conservative estimate
+        
+        if se_d == 0:
+            return d > 0  # Rare edge case
+        
+        z = d / se_d
+        p_value = norm.sf(z)  # One-tailed p-value for d > 0
     
     print(f"→ p-value: {p_value:.2e}")
     
@@ -157,7 +80,7 @@ def compute_cv_scores(data, Vk, B, categorical_features_B, n_splits, lgbm_params
     y, class_names = pd.factorize(data[Vk])
     target_cardinality = len(class_names)
     if target_cardinality < 2:
-        return None  # Signal to skip
+        return None
 
     lgbm_params = lgbm_params_base.copy()
     if target_cardinality == 2:
@@ -210,8 +133,7 @@ def conditional_test(Vk, B, data_obs, data_exp, alpha, n_splits):
                 'n_estimators': 30,
                 'learning_rate': 0.1,
                 'verbose': -1,
-                'n_jobs': -1,
-                'class_weight': 'balanced'
+                'n_jobs': -1
             }
 
             # Compute for mixed (combined)
@@ -251,7 +173,7 @@ def conditional_test(Vk, B, data_obs, data_exp, alpha, n_splits):
             weighted_separate = (n_obs * mean_obs + n_exp * mean_exp) / (n_obs + n_exp)
             print(f"→ Mean mixed: {mean_mixed:.5f}, Weighted mean separate: {weighted_separate:.5f}")
 
-            return should_use_separate_models(mixed_scores, separate_scores, alpha)
+            return should_use_separate_models(mixed_scores, obs_scores, exp_scores, n_obs, n_exp, alpha)
 
         except (np.linalg.LinAlgError, ValueError, IndexError):
             return False
