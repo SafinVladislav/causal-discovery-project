@@ -25,7 +25,6 @@ warnings.filterwarnings("ignore")
 current_script_path = Path(__file__).resolve()
 PROJECT_ROOT = current_script_path.parent
 RELATIVE_VIS_DIR = Path("visualizations")
-OBS_SAMPLES = 20000
 
 def PC_quality(true_essential, pc_essential):
     true_skeleton = true_essential.to_undirected()
@@ -80,7 +79,10 @@ def tune_pc_parameters(data_generator, n_trials_tune, n_candidates, sl_candidate
     print(f"\nReturning best PC parameters: N={best['n']}, SL={best['sl']} with average quality {best['avg_quality']:.3f}")
     return best['n'], best['sl']
 
-def run_simulation(data_generator, trials, nIs, aI1s, aI2s, strategy, pc_sl):
+OBS_SAMPLES = 20000
+PC_SIG_LEV = 0.005
+
+def run_simulation(data_generator, trials, nIs, aI1s, aI2s, strategy):
     simulation_results = []
 
     print(f"\nStrategy: {strategy}")
@@ -111,7 +113,7 @@ def run_simulation(data_generator, trials, nIs, aI1s, aI2s, strategy, pc_sl):
                             essential_graph = data_generator.get_essential_graph()
                             """essential_graph = nx.DiGraph(pc_estimator.estimate(
                                 variant='stable', ci_test='chi_square',
-                                significance_level=pc_sl, return_type="cpdag"
+                                significance_level=PC_SIG_LEV, return_type="cpdag"
                             ))"""
 
                         end_pc = time.time()
@@ -171,22 +173,22 @@ def run_simulation(data_generator, trials, nIs, aI1s, aI2s, strategy, pc_sl):
     return simulation_results
 
 if __name__ == "__main__":
-    #'example', 'example_2', 'asia', 'cancer', 'earthquake', 'sachs', 'survey', 'alarm', 'barley', 'child', 'insurance', 'mildew', 'water', 'hailfinder', 'hepar2', 'win95pts', 'andes', 'munin_subnetwork_1'
-    #slow: 'diabetes', 'link', 'pathfinder', 'munin_full_network', 'munin_subnetwork_2', 'munin_subnetwork_3', 'munin_subnetwork_4'
-    #"minimax", "greedy", "entropy"
+    # 'example', 'example_2', 'asia', 'cancer', 'earthquake', 'sachs', 'survey', 'alarm', 'barley', 'child', 'insurance', 'mildew', 'water', 'hailfinder', 'hepar2', 'win95pts', 'andes', 'munin_subnetwork_1'
+    # slow: 'diabetes', 'link', 'pathfinder', 'munin_full_network', 'munin_subnetwork_2', 'munin_subnetwork_3', 'munin_subnetwork_4'
+    # "minimax", "greedy", "entropy"
     trials = 1
 
     BOLD = '\033[1m'
     END = '\033[0m'
 
-    for model_name in ['alarm']:#'munin_subnetwork_1']:
+    for model_name in ['hepar2']:
         print(f"{BOLD}\n{model_name.upper()}{END}")
         
         data_generator = DataGenerator(model_name)
 
         #tune_pc_parameters(data_generator, 3, [500, 1000, 2000, 5000, 10000, 20000, 50000], [0.001, 0.005, 0.01, 0.05, 0.1, 0.3])
         for strategy in ["greedy"]:#, "entropy", "minimax"]:
-            results = run_simulation(data_generator, trials, [3000], [0.01], [0.01], strategy, 0.005)
+            results = run_simulation(data_generator, trials, [5000], [0.005], [0.05], strategy)
 
             print("--- Simulation Results ---")
             print(f"{'nI':<8}{'aI1':<8}{'aI2':<8}{'corr_perc':<12}{'undir':<8}{'oriented':<12}{'recall':<8}{'recall_corr':<15}"
@@ -195,19 +197,19 @@ if __name__ == "__main__":
 
             for res in results:
                 print(f"{res['nI']:<8}"
-                      f"{res['aI1']:<8.2f}"
-                      f"{res['aI2']:<8.2f}"
-                      f"{res['corr_perc']:<12.2f}"
-                      f"{res['undir']:<8.2f}"
-                      f"{res['oriented']:<12.2f}"
+                      f"{res['aI1']:<8.3f}"
+                      f"{res['aI2']:<8.3f}"
+                      f"{res['corr_perc']:<12.3f}"
+                      f"{res['undir']:<8.3f}"
+                      f"{res['oriented']:<12.3f}"
                       f"{res['recall']:<8.3f}"
                       f"{res['recall_corr']:<15.3f}"
                       f"{res['prec']:<8.3f}"
                       f"{res['prec_corr']:<12.3f}"
                       f"{res['exp']:<10.2f}"
                       f"{res['exp_corr']:<12.2f}"
-                      f"{res['time_pc']:<12.4f}"
-                      f"{res['time_orient']:<15.4f}"
+                      f"{res['time_pc']:<12.2f}"
+                      f"{res['time_orient']:<15.2f}"
                       )
 
             data_generator.visualize(results[0]['essential_graph'], results[0]['oriented_graph'], RELATIVE_VIS_DIR / f"{model_name}")
