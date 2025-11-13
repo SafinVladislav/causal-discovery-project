@@ -69,6 +69,21 @@ def create_model(model_name: str):
 
         pgmpy_model.add_cpds(cpd_v1, cpd_v2, cpd_v3, cpd_v4)
         return pgmpy_model
+
+    elif model_name == "example_3":
+        pgmpy_model = BayesianNetwork([
+            ('V4', 'V2'),
+            ('V2', 'V1'),
+            ('V1', 'V3')
+        ])
+
+        cpd_v4 = TabularCPD('V4', 2, [[0.5], [0.5]])
+        cpd_v2 = TabularCPD('V2', 2, [[0.8, 0.2], [0.2, 0.8]], evidence=['V4'], evidence_card=[2])
+        cpd_v1 = TabularCPD('V1', 2, [[0.9, 0.3], [0.1, 0.7]], evidence=['V2'], evidence_card=[2])
+        cpd_v3 = TabularCPD('V3', 2, [[0.7, 0.3], [0.3, 0.7]], evidence=['V1'], evidence_card=[2])
+
+        pgmpy_model.add_cpds(cpd_v1, cpd_v2, cpd_v3, cpd_v4)
+        return pgmpy_model
     
     model_name_map = {
       'munin_subnetwork_1': ('https://www.bnlearn.com/bnrepository/munin4/munin1.bif.gz', 'munin1.bif'), 

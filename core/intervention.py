@@ -83,6 +83,7 @@ def choose_intervention_variable(graph, intervened, strategy):
     
     # Find optimal metric value based on strategy
     optimal_func = max if strategy == "entropy" else min
+    print(node_metrics.values())
     best_metric = optimal_func(node_metrics.values())
     
     # Collect all nodes with the optimal metric and choose randomly

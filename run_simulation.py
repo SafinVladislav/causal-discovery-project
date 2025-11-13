@@ -181,13 +181,13 @@ if __name__ == "__main__":
     BOLD = '\033[1m'
     END = '\033[0m'
 
-    for model_name in ['hepar2']:
+    for model_name in ['example_3']:
         print(f"{BOLD}\n{model_name.upper()}{END}")
         
         data_generator = DataGenerator(model_name)
 
         #tune_pc_parameters(data_generator, 3, [500, 1000, 2000, 5000, 10000, 20000, 50000], [0.001, 0.005, 0.01, 0.05, 0.1, 0.3])
-        for strategy in ["greedy"]:#, "entropy", "minimax"]:
+        for strategy in ["entropy"]:#, "entropy", "minimax"]:
             results = run_simulation(data_generator, trials, [5000], [0.005], [0.05], strategy)
 
             print("--- Simulation Results ---")
