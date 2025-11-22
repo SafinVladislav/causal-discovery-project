@@ -24,48 +24,55 @@ import logging
 logging.getLogger("pgmpy").setLevel(logging.ERROR)
 warnings.filterwarnings("ignore")
 
+"""
+This class separates the orientation algorithm from ground-truth models used 
+for data generation. Currently uses bnlearn models; in future, replace with 
+simulations of real-world processes.
+"""
 class DataGenerator:
+    """
+    Models are uploaded from the Web and stored permanently in 'models' folder.
+    List of all acceptable names: 'example_1', 'example_2', 'asia', 'cancer', 
+    'earthquake', 'sachs', 'survey', 'alarm', 'barley', 'child', 'insurance', 
+    'mildew', 'water', 'hailfinder', 'hepar2', 'win95pts', 'andes', 'diabetes', 
+    'link', 'munin_subnetwork_1', 'pathfinder', 'pigs', 'munin_full_network', 
+    'munin_subnetwork_2', 'munin_subnetwork_3', 'munin_subnetwork_4'
+    """
     def __init__(self, model_name: str):
         self.model = create_model(model_name)
 
+    """
+    This function is meant for generating a certain number of rows
+    for a dataset based on a model (either original or modified one).
+    """
     def silent_simulate(self, model, samples: int):
         with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
             sampler = BayesianModelSampling(model)
             obs_data = sampler.forward_sample(size=samples)
             return obs_data
 
-    def observational(self, samples: int, variables_to_keep=None) -> pd.DataFrame:
+    """
+    Generating data based on our original model.
+    """
+    def observational(self, samples: int) -> pd.DataFrame:
         obs_data = self.silent_simulate(self.model, samples)
-        if variables_to_keep != None:
-            obs_data = obs_data[variables_to_keep]
         return obs_data
 
-    def quasi_experiment(self, var, samples, variables_to_keep=None):
+    """
+    Here we change conditional distribution of some variable
+    and generate data based on our modified model.
+    """
+    def quasi_experiment(self, var, samples):
         intervened_model = self.model.copy()
-
-        if variables_to_keep is not None:
-            ancestral_graph_structure = intervened_model.get_ancestral_graph(variables_to_keep)
-            anc_gr_str_nodes = ancestral_graph_structure.nodes()
-
-            ancestral_model = BayesianNetwork(
-                intervened_model.subgraph(anc_gr_str_nodes).edges()
-            )
-
-            cpds_to_add = []
-            for node in anc_gr_str_nodes:
-                cpd = intervened_model.get_cpds(node)
-                if cpd is not None:
-                    cpds_to_add.append(cpd)
-
-            ancestral_model.add_cpds(*cpds_to_add)
-            intervened_model = ancestral_model
 
         old_cpd = intervened_model.get_cpds(var)
         values = old_cpd.values.reshape(old_cpd.cardinality[0], -1)
         
-        #That's how we conduct an experiment
+        #Conduct a quasi-experiment by making the CPD deterministic: 
+        #set probability 1 to the most likely state from the original CPD, 
+        #simulating a hard intervention.
         new_values = np.zeros_like(values)
-        max_indices = np.argmin(values, axis=0)
+        max_indices = np.argmax(values, axis=0)
         new_values[max_indices, np.arange(values.shape[1])] = 1.0
 
         state_names = {var: old_cpd.state_names[var]}
@@ -97,23 +104,36 @@ class DataGenerator:
         
         df = self.silent_simulate(intervened_model, samples)
         
-        if variables_to_keep is not None:
-            df = df[variables_to_keep]
-        
         return df
     
+    """
+    Getting a simplified and correct essential graph (faster than PC - good for testing).
+    """
     def get_essential_graph(self):
         true_graph = nx.DiGraph(self.model)
         return to_undirected_with_v_structures(true_graph)
 
-    def recall(self, essential_graph, oriented):
+    """
+    Calculates the fraction of undirected edges 
+    (each stored as two directed edges in the graph) 
+    that were successfully oriented.
+    """
+    def recall(self, oriented):
+        essential_graph = self.get_essential_graph()
         undirected_edges = find_undirected_edges(essential_graph)
-        return len(oriented) / (len(undirected_edges) / 2) if len(undirected_edges) > 0 else 1.0
+        return len(oriented & set(undirected_edges)) / (len(undirected_edges) / 2) if len(undirected_edges) > 0 else 1.0
 
+    """
+    Percent of correctly oriented edges among all oriented.
+    """
     def precision(self, oriented):
         true_graph = nx.DiGraph(self.model)
         true_edges = set(true_graph.edges())
         return len(oriented & true_edges) / len(oriented) if len(oriented) > 0 else 1.0
 
+    """
+    Visualizing three graphs - original, outputted by PC (essential) 
+    and final one.
+    """
     def visualize(self, pc_essential_graph, oriented_graph, pic_dir):
         visualize_graphs(nx.DiGraph(self.model), pc_essential_graph, oriented_graph, pic_dir)

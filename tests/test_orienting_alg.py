@@ -31,7 +31,7 @@ class TestCausalDiscovery(unittest.TestCase):
         ]
         model.add_cpds(*cpds)
         assert model.check_model()
-        data_generator = DataGenerator('example')  # dummy init
+        data_generator = DataGenerator('example_1')
         data_generator.model = model
         return data_generator
     
@@ -47,7 +47,7 @@ class TestCausalDiscovery(unittest.TestCase):
         ]
         model.add_cpds(*cpds)
         assert model.check_model()
-        data_generator = DataGenerator('example')  # dummy init
+        data_generator = DataGenerator('example_1')  # dummy init
         data_generator.model = model
         return data_generator
     
@@ -68,7 +68,7 @@ class TestCausalDiscovery(unittest.TestCase):
         ]
         model.add_cpds(*cpds)
         assert model.check_model()
-        data_generator = DataGenerator('example')  # dummy init
+        data_generator = DataGenerator('example_1')  # dummy init
         data_generator.model = model
         return data_generator
 
@@ -86,7 +86,7 @@ class TestCausalDiscovery(unittest.TestCase):
         ]
         model.add_cpds(*cpds)
         assert model.check_model()
-        data_generator = DataGenerator('example')  # dummy init
+        data_generator = DataGenerator('example_1')  # dummy init
         data_generator.model = model
         return data_generator
 
@@ -104,7 +104,7 @@ class TestCausalDiscovery(unittest.TestCase):
         ]
         model.add_cpds(*cpds)
         assert model.check_model()
-        data_generator = DataGenerator('example')  # dummy init
+        data_generator = DataGenerator('example_1')  # dummy init
         data_generator.model = model
         return data_generator
     
@@ -121,7 +121,7 @@ class TestCausalDiscovery(unittest.TestCase):
         ]
         model.add_cpds(*cpds)
         assert model.check_model()
-        data_generator = DataGenerator('example')  # dummy init
+        data_generator = DataGenerator('example_1')  # dummy init
         data_generator.model = model
         return data_generator
 
@@ -139,7 +139,7 @@ class TestCausalDiscovery(unittest.TestCase):
         ]
         model.add_cpds(*cpds)
         assert model.check_model()
-        data_generator = DataGenerator('example')  # dummy init
+        data_generator = DataGenerator('example_1')  # dummy init
         data_generator.model = model
         return data_generator
 

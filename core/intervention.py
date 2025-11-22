@@ -14,6 +14,16 @@ N_SAMPLES = 1000
 EST_ITERS = 1
 THRESHOLD = 0.7
 
+"""
+Choosing the best variable to intervene based on some strategy.
+Sometimes there are edges we cannot orient even after intervening on both ends.
+That is why we need 'intervened' parameter - not to repeat ourselves.
+Greedy - choosing a variable with maximum adjacent undirected edges.
+Entropy - making future orienting as efficient, on average, as possible
+(once we orient there will probably be few viable dags left).
+Minimax - same as Entropy, but considering the worst case instead of average
+(once we orient there will for sure be few viable dags left).
+"""
 def choose_intervention_variable(graph, intervened, strategy):
     if strategy not in ["greedy", "minimax", "entropy"]:
         raise ValueError("Invalid strategy.")
@@ -81,12 +91,9 @@ def choose_intervention_variable(graph, intervened, strategy):
     if not node_metrics:
         return None, None
     
-    # Find optimal metric value based on strategy
     optimal_func = max if strategy == "entropy" else min
-    print(node_metrics.values())
     best_metric = optimal_func(node_metrics.values())
     
-    # Collect all nodes with the optimal metric and choose randomly
     candidates = [node for node, metric in node_metrics.items() if metric == best_metric]
     chosen_node = random.choice(candidates)
     return chosen_node, 0

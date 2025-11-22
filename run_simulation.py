@@ -26,6 +26,10 @@ current_script_path = Path(__file__).resolve()
 PROJECT_ROOT = current_script_path.parent
 RELATIVE_VIS_DIR = Path("visualizations")
 
+"""
+This function is meant for choosing best PC parameters.
+We use simple metrics of difference between two essential graphs.
+"""
 def PC_quality(true_essential, pc_essential):
     true_skeleton = true_essential.to_undirected()
     pc_skeleton = pc_essential.to_undirected()
@@ -43,6 +47,10 @@ def PC_quality(true_essential, pc_essential):
 
     return skeleton_additions + skeleton_deletions + additions + deletions
 
+"""
+Tunes PC algorithm parameters by measuring skeleton and orientation differences 
+(additions/deletions) between true and estimated essential graphs.
+"""
 def tune_pc_parameters(data_generator, n_trials_tune, n_candidates, sl_candidates):
     ess_graph = data_generator.get_essential_graph()
 
@@ -80,8 +88,12 @@ def tune_pc_parameters(data_generator, n_trials_tune, n_candidates, sl_candidate
     return best['n'], best['sl']
 
 OBS_SAMPLES = 20000
-PC_SIG_LEV = 0.005
+PC_SIG_LEV = 0.1
 
+"""
+Running essential graph generation and orientation for each set of parameters 'trials' 
+times.
+"""
 def run_simulation(data_generator, trials, nIs, aI1s, aI2s, strategy):
     simulation_results = []
 
@@ -110,6 +122,10 @@ def run_simulation(data_generator, trials, nIs, aI1s, aI2s, strategy):
                         start_pc = time.time()
                         pc_estimator = PC(data=obs_data)
                         with io.capture_output():
+                            """
+                            PC algorithm is rather slow, so simplified essential
+                            graph may be good for testing.
+                            """
                             essential_graph = data_generator.get_essential_graph()
                             """essential_graph = nx.DiGraph(pc_estimator.estimate(
                                 variant='stable', ci_test='chi_square',
@@ -136,7 +152,7 @@ def run_simulation(data_generator, trials, nIs, aI1s, aI2s, strategy):
                         perf['oriented'] += len(oriented)
 
                         perf[is_correct]['experiments'] += num_exp
-                        perf[is_correct]['recall'] += data_generator.recall(essential_graph, oriented)
+                        perf[is_correct]['recall'] += data_generator.recall(oriented)
                         perf[is_correct]['precision'] += data_generator.precision(oriented)
 
                         pbar_outer.update(1)
@@ -166,6 +182,8 @@ def run_simulation(data_generator, trials, nIs, aI1s, aI2s, strategy):
                         'recall_corr': recall_corr,
                         'prec': prec,
                         'prec_corr': prec_corr,
+                        'F1': 2 * recall * prec / (recall + prec) if (recall + prec) > 0 else 0,
+                        'F1_corr': 2 * recall_corr * prec_corr / (recall_corr + prec_corr) if (recall_corr + prec_corr) > 0 else 0,
                         'essential_graph': some_essential_graph,
                         'oriented_graph': some_oriented_graph
                     })
@@ -173,26 +191,45 @@ def run_simulation(data_generator, trials, nIs, aI1s, aI2s, strategy):
     return simulation_results
 
 if __name__ == "__main__":
-    # 'example', 'example_2', 'asia', 'cancer', 'earthquake', 'sachs', 'survey', 'alarm', 'barley', 'child', 'insurance', 'mildew', 'water', 'hailfinder', 'hepar2', 'win95pts', 'andes', 'munin_subnetwork_1'
+    # 'example_1', 'example_2', 'asia', 'cancer', 'earthquake', 'sachs', 'survey', 'alarm', 'barley', 'child', 'insurance', 'mildew', 'water', 'hailfinder', 'hepar2', 'win95pts', 'andes', 'munin_subnetwork_1'
     # slow: 'diabetes', 'link', 'pathfinder', 'munin_full_network', 'munin_subnetwork_2', 'munin_subnetwork_3', 'munin_subnetwork_4'
-    # "minimax", "greedy", "entropy"
+    # "greedy", "entropy", "minimax"
     trials = 1
 
     BOLD = '\033[1m'
     END = '\033[0m'
 
-    for model_name in ['example_3']:
+    for model_name in ['insurance']:
         print(f"{BOLD}\n{model_name.upper()}{END}")
         
         data_generator = DataGenerator(model_name)
 
         #tune_pc_parameters(data_generator, 3, [500, 1000, 2000, 5000, 10000, 20000, 50000], [0.001, 0.005, 0.01, 0.05, 0.1, 0.3])
-        for strategy in ["entropy"]:#, "entropy", "minimax"]:
-            results = run_simulation(data_generator, trials, [5000], [0.005], [0.05], strategy)
+        for strategy in ["greedy"]:#, "entropy", "minimax"]:
+            #results = run_simulation(data_generator, trials, [0.01, 0.05, 0.1, 0.2], [0.01, 0.05, 0.1, 0.2], strategy)
+            results = run_simulation(data_generator, trials, [10000], [0.05], [0.2], strategy)#[0.01, 0.05, 0.1, 0.2], [0.01, 0.05, 0.1, 0.2], strategy)
 
+            """
+            nI - samples quantity in experimental dataset;
+            aI1 - significance level for marginal test;
+            aI2 - significance level for conditional test;
+            corr_perc - average share of correctly estimated essential graphs (PC);
+            undir - average number of undirected ribs in essential graph;
+            oriented - average number of oriented ribs (among originally undirected);
+            recall - average share of oriented ribs (among originally undirected);
+            recall_corr - same, but only for correctly estimated essential graphs;
+            prec - average share of correctly oriented ribs (among all oriented);
+            prec_corr - same, but only for correctly estimated essential graphs;
+            F1 - score based on recall and prec;
+            F1 - score based on recall_corr and prec_corr;
+            exp - average number of conducted experiments (interventions);
+            exp_corr - same, but only for correctly estimated essential graphs;
+            time_pc - average time spent constructing essential graph;
+            time_orient - average time spent orienting.
+            """
             print("--- Simulation Results ---")
             print(f"{'nI':<8}{'aI1':<8}{'aI2':<8}{'corr_perc':<12}{'undir':<8}{'oriented':<12}{'recall':<8}{'recall_corr':<15}"
-                  f"{'prec':<8}{'prec_corr':<12}{'exp':<10}{'exp_corr':<12}"
+                  f"{'prec':<8}{'prec_corr':<12}{'F1':<8}{'F1_corr':<8}{'exp':<10}{'exp_corr':<12}"
                   f"{'time_pc':<12}{'time_orient':<15}")
 
             for res in results:
@@ -206,6 +243,8 @@ if __name__ == "__main__":
                       f"{res['recall_corr']:<15.3f}"
                       f"{res['prec']:<8.3f}"
                       f"{res['prec_corr']:<12.3f}"
+                      f"{res['F1']:<8.3f}"
+                      f"{res['F1_corr']:<8.3f}"
                       f"{res['exp']:<10.2f}"
                       f"{res['exp_corr']:<12.2f}"
                       f"{res['time_pc']:<12.2f}"

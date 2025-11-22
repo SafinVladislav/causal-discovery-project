@@ -4,8 +4,10 @@ import networkx as nx
 import os
 import math
 
+"""
+Visualizing true (from our model), essential (after PC), oriented (after our algorithm).
+"""
 def visualize_graphs(true_graph, pc_essential_graph, oriented_graph, pic_path):
-    # Determine graph size based on the largest graph (number of nodes)
     n_true = true_graph.number_of_nodes()
     n_essential = pc_essential_graph.number_of_nodes()
     n_oriented = oriented_graph.number_of_nodes()
@@ -13,20 +15,20 @@ def visualize_graphs(true_graph, pc_essential_graph, oriented_graph, pic_path):
     
     # Dynamically scale figure size (wider for 3 subplots)
     base_scale = math.sqrt(n) if n > 0 else 1
-    fig_width = max(24, 3 * base_scale)  # Ensure minimum width for 3 cols
-    fig_height = max(8, base_scale * 2)  # Taller for larger graphs
+    fig_width = max(24, 3 * base_scale)
+    fig_height = max(8, base_scale * 2)
     fig, ax = plt.subplots(nrows=1, ncols=3, figsize=(fig_width, fig_height))
     
     # Dynamically scale visual elements
-    node_size = max(50, 5000 / base_scale)  # Smaller nodes for larger graphs
-    font_size = max(6, min(12, 120 / base_scale))  # Readable but scaled fonts
-    arrowsize = max(5, font_size * 1.5)  # Scale arrows with fonts
+    node_size = max(50, 5000 / base_scale)
+    font_size = max(6, min(12, 120 / base_scale))
+    arrowsize = max(5, font_size * 1.5)
     
     # Use 'sfdp' for better scaling on large graphs; fallback to 'dot' if issues
     try:
         pos = graphviz_layout(true_graph, prog='sfdp')
     except:
-        pos = graphviz_layout(true_graph, prog='dot')  # Fallback if 'sfdp' fails
+        pos = graphviz_layout(true_graph, prog='dot')
     
     # Draw True Graph
     nx.draw(
@@ -42,7 +44,7 @@ def visualize_graphs(true_graph, pc_essential_graph, oriented_graph, pic_path):
     )
     ax[0].set_title('True Graph')
     
-    # Draw Essential Graph (reuse pos; compute separate if structures differ greatly)
+    # Draw Essential Graph (reuse pos)
     nx.draw(
         pc_essential_graph,
         pos=pos,
@@ -56,7 +58,7 @@ def visualize_graphs(true_graph, pc_essential_graph, oriented_graph, pic_path):
     )
     ax[1].set_title('Essential Graph')
     
-    # Draw Oriented Graph
+    # Draw Oriented Graph (reuse pos)
     nx.draw(
         oriented_graph,
         pos=pos,

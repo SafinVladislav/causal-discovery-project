@@ -27,6 +27,14 @@ LOADED_MODELS_DIR = current_script_path.parent.parent / 'models'
 from pgmpy.sampling import BayesianModelSampling
 from pgmpy.readwrite import BIFReader as BIFReader
 
+"""
+A function for creating several example models and loading discrete models from bnlearn.
+List of all acceptable names: 'example_1', 'example_2', 'asia', 'cancer', 
+'earthquake', 'sachs', 'survey', 'alarm', 'barley', 'child', 'insurance', 
+'mildew', 'water', 'hailfinder', 'hepar2', 'win95pts', 'andes', 'diabetes', 
+'link', 'munin_subnetwork_1', 'pathfinder', 'pigs', 'munin_full_network', 
+'munin_subnetwork_2', 'munin_subnetwork_3', 'munin_subnetwork_4'
+"""
 def create_model(model_name: str):
     model_path = LOADED_MODELS_DIR / f'{model_name}_model.pkl'
 
@@ -35,7 +43,7 @@ def create_model(model_name: str):
         with open(model_path, 'rb') as f:
             return pickle.load(f)
 
-    if model_name == "example":
+    if model_name == "example_1":
         pgmpy_model = BayesianNetwork([
             ('V1', 'V2'),
             ('V1', 'V3'),
@@ -117,5 +125,3 @@ def create_model(model_name: str):
         pickle.dump(pgmpy_model, f)
     print(f"Saved {model_name} model to pickle.")
     return pgmpy_model
-
-#'example', 'example_2', 'asia', 'cancer', 'earthquake', 'sachs', 'survey', 'alarm', 'barley', 'child', 'insurance', 'mildew', 'water', 'hailfinder', 'hepar2', 'win95pts', 'andes', 'diabetes', 'link', 'munin_subnetwork_1', 'pathfinder', 'pigs', 'munin_full_network', 'munin_subnetwork_2', 'munin_subnetwork_3', 'munin_subnetwork_4'
