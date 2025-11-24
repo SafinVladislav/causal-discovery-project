@@ -110,6 +110,7 @@ def run_simulation(data_generator, trials, nIs, aI1s, aI2s, strategy):
                         'time_orient': 0.0,
                         'undir': 0.0,
                         'oriented': 0.0,
+                        'fallback': 0.0,
                         True:  {'experiments': 0.0, 'recall': 0.0, 'precision': 0.0},
                         False: {'experiments': 0.0, 'recall': 0.0, 'precision': 0.0}
                     }
@@ -150,6 +151,7 @@ def run_simulation(data_generator, trials, nIs, aI1s, aI2s, strategy):
                         some_oriented_graph = oriented_graph
                         perf['time_orient'] += time_orient
                         perf['oriented'] += len(oriented)
+                        perf['fallback'] += fallback_perc
 
                         perf[is_correct]['experiments'] += num_exp
                         perf[is_correct]['recall'] += data_generator.recall(oriented)
@@ -162,6 +164,7 @@ def run_simulation(data_generator, trials, nIs, aI1s, aI2s, strategy):
                     oriented = perf['oriented'] / trials if trials > 0 else float('-inf')
                     exp = (perf[0]['experiments'] + perf[1]['experiments']) / trials if trials > 0 else -float('-inf')
                     exp_corr = perf[1]['experiments'] / perf['num_correct_essential_graphs'] if perf['num_correct_essential_graphs'] > 0 else float('-inf')
+                    fallback = perf['fallback'] / trials if trials > 0 else float('-inf')
                     time_pc = perf['time_pc'] / trials if trials > 0 else float('-inf')
                     time_orient = perf['time_orient'] / trials if trials > 0 else float('-inf')
                     recall = (perf[0]['recall'] + perf[1]['recall']) / trials if trials > 0 else float('-inf')
@@ -176,6 +179,7 @@ def run_simulation(data_generator, trials, nIs, aI1s, aI2s, strategy):
                         'oriented': oriented,
                         'exp': exp,
                         'exp_corr': exp_corr,
+                        'fallback': fallback,
                         'time_pc': time_pc,
                         'time_orient': time_orient,
                         'recall': recall,
@@ -228,28 +232,25 @@ if __name__ == "__main__":
             time_orient - average time spent orienting.
             """
             print("--- Simulation Results ---")
-            print(f"{'nI':<8}{'aI1':<8}{'aI2':<8}{'corr_perc':<12}{'undir':<8}{'oriented':<12}{'recall':<8}{'recall_corr':<15}"
-                  f"{'prec':<8}{'prec_corr':<12}{'F1':<8}{'F1_corr':<8}{'exp':<10}{'exp_corr':<12}"
-                  f"{'time_pc':<12}{'time_orient':<15}")
 
             for res in results:
-                print(f"{res['nI']:<8}"
-                      f"{res['aI1']:<8.3f}"
-                      f"{res['aI2']:<8.3f}"
-                      f"{res['corr_perc']:<12.3f}"
-                      f"{res['undir']:<8.3f}"
-                      f"{res['oriented']:<12.3f}"
-                      f"{res['recall']:<8.3f}"
-                      f"{res['recall_corr']:<15.3f}"
-                      f"{res['prec']:<8.3f}"
-                      f"{res['prec_corr']:<12.3f}"
-                      f"{res['F1']:<8.3f}"
-                      f"{res['F1_corr']:<8.3f}"
-                      f"{res['exp']:<10.2f}"
-                      f"{res['exp_corr']:<12.2f}"
-                      f"{res['time_pc']:<12.2f}"
-                      f"{res['time_orient']:<15.2f}"
+                print(f"nI - {res['nI']}; "
+                      f"aI1 - {res['aI1']:.3f}; "
+                      f"aI2 - {res['aI2']:.3f}; "
+                      f"corr_perc - {res['corr_perc']:.3f}; "
+                      f"undir - {res['undir']:.3f}; "
+                      f"oriented - {res['oriented']:.3f}; "
+                      f"recall - {res['recall']:.3f}; "
+                      f"recall_corr - {res['recall_corr']:.3f}; "
+                      f"prec - {res['prec']:.3f}; "
+                      f"prec_corr - {res['prec_corr']:.3f}; "
+                      f"F1 - {res['F1']:.3f}; "
+                      f"F1_corr - {res['F1_corr']:.3f}; "
+                      f"exp - {res['exp']:.2f}; "
+                      f"exp_corr - {res['exp_corr']:.2f}; "
+                      f"fallback - {res['fallback']:.2f}; "
+                      f"time_pc - {res['time_pc']:.2f}; "
+                      f"time_orient - {res['time_orient']:.2f}"
                       )
-
             data_generator.visualize(results[0]['essential_graph'], results[0]['oriented_graph'], RELATIVE_VIS_DIR / f"{model_name}")
         

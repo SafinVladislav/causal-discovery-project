@@ -192,14 +192,14 @@ def orient_random_restarts(graph):
 """
 Generate a required number of correct dags.
 """
-WARNING_THRESHOLD = 0.25
+WARNING_THRESHOLD = 0.05
 def sample_dags(graph, n_samples):
     def generate_dag():
         return orient_random_restarts(graph)
     dags = Parallel(n_jobs=-1)(delayed(generate_dag)() for _ in range(n_samples))
     valid_dags = [dag for dag in dags if dag is not None]
-    if (n_samples > 0) and (len(valid_dags) / n_samples < WARNING_THRESHOLD):
-        print(f"For n_samples = {n_samples} less then {WARNING_THRESHOLD * 100} percent of valid dags generated. Consider using approaches not requiring sampling (greedy, for example).")
+    if (len(valid_dags) > 0) and (len(valid_dags) / n_samples < WARNING_THRESHOLD):
+        print(f"\nFor n_samples = {n_samples} less then {WARNING_THRESHOLD * 100} percent of valid dags generated.")
     return valid_dags
 
 """

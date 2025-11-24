@@ -1,0 +1,17 @@
+# requirements.txt – works on Python 3.9–3.13, Windows/Linux/macOS/Colab
+pgmpy>=0.1.24
+networkx>=3.0
+pandas>=2.0
+numpy>=1.22,<2.3
+scipy>=1.10
+matplotlib>=3.7
+tqdm
+joblib
+bnlearn>=0.8
+requests
+statsmodels
+lightgbm>=4.0
+scikit-learn>=1.3
+graphviz
+pydot
+ipython
