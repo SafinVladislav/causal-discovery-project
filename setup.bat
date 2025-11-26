@@ -3,7 +3,7 @@ title Causal Discovery Project - Setup
 
 echo.
 echo ==================================================
-echo    Causal Discovery Project - One-click Setup
+echo    Causal Discovery Project - Setup
 echo ==================================================
 echo.
 
@@ -30,11 +30,20 @@ if %errorlevel% neq 0 (
     set PYTHON=python
 )
 
-:: Check Python version (requires at least 3.9)
 for /f "tokens=2" %%v in ('%PYTHON% --version 2^>^&1') do set PYVER=%%v
 echo Found Python %PYVER%
 
-:: Create venv only if missing
+if exist venv (
+    echo Virtual environment folder exists - checking if it's healthy...
+    venv\Scripts\python -m pip --version >nul 2>&1
+    if !errorlevel! equ 0 (
+        echo   Existing venv looks healthy - reusing it.
+    ) else (
+        echo   Existing venv is broken or incomplete - deleting and recreating...
+        rd /s /q venv
+    )
+)
+
 if not exist venv (
     echo.
     echo Creating virtual environment...

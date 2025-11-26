@@ -1,18 +1,19 @@
-#!/bin/bash
 # =============================================================================
-#  Causal Discovery Project – One-click Linux/macOS Setup
-#  Just run: ./setup.sh   (or double-click in most desktop environments)
+#  Causal Discovery Project – Linux/macOS Setup
 # =============================================================================
+error_exit() {
+    echo ""
+    echo "[ERROR] Something went wrong during setup." >&2
+    echo "Check the error messages above." >&2
+    exit 1
+}
 
-set -e  # Stop on any error (makes the script much safer)
-
-echo
+echo ""
 echo "=================================================="
-echo "   Causal Discovery Project - One-click Setup"
+echo "   Causal Discovery Project - Setup"
 echo "=================================================="
-echo
+echo ""
 
-# ---- 1. Find python (python3 or python) ----
 if command -v python3 >/dev/null 2>&1; then
     PYTHON="python3"
 elif command -v python >/dev/null 2>&1; then
@@ -23,52 +24,52 @@ else
     exit 1
 fi
 
-# Show version
 PYVER=$($PYTHON --version 2>&1 | awk '{print $2}')
 echo "Found $PYTHON ($PYVER)"
 
-# ---- 2. Create venv only if it doesn't exist ----
-if [ ! -d "venv" ]; then
-    echo
-    echo "Creating virtual environment..."
-    $PYTHON -m venv venv
-else
-    echo
-    echo "Virtual environment already exists - reusing it."
+if [ -d "venv" ]; then
+    echo "Virtual environment folder exists - checking if it is healthy..."
+    if [ -f "venv/bin/python" ] && venv/bin/python -m pip --version >/dev/null 2>&1; then
+        echo "Existing venv looks healthy - reusing it."
+    else
+        echo "Existing venv is broken or incomplete → deleting and recreating it."
+        rm -rf venv
+    fi
 fi
 
-# ---- 3. Activate venv ----
-echo
-echo "Activating virtual environment..."
-source venv/bin/activate
+# ---- Create venv only if it doesn't exist ----
+if [ ! -d "venv" ]; then
+    echo ""
+    echo "Creating virtual environment..."
+    $PYTHON -m venv venv || error_exit
+fi
 
-# ---- 4. Upgrade pip the modern safe way ----
+# ---- Activate venv ----
+echo ""
+echo "Activating virtual environment..."
+source venv/bin/activate || error_exit
+
+# ---- Upgrade pip the modern safe way ----
 echo "Upgrading pip..."
 python -m pip install --upgrade pip > /dev/null 2>&1 || true
 
-# ---- 5. Install / update requirements ----
-echo
+# ---- Install / update requirements ----
+echo ""
 echo "Installing / updating project dependencies..."
-pip install -r requirements.txt --upgrade
+pip install torch --index-url https://download.pytorch.org/whl/cpu || true
+pip install -r requirements.txt --upgrade || error_exit
 
 deactivate || true
 
-echo
+echo ""
 echo "=================================================="
 echo "    SUCCESS! Everything is ready"
 echo "=================================================="
-echo
+echo ""
 echo "To run the simulation now or later:"
 echo "   source venv/bin/activate"
 echo "   python run_simulation.py"
 echo "   deactivate"
-echo
-echo "Tip: You can run ./setup.sh anytime - it's completely safe!"
-echo
-
-# Keep terminal open if double-clicked (common on desktop environments)
-if [[ -t 1 ]]; then
-    exec bash  # keeps the activated venv open
-else
-    read -p "Press Enter to close..."
-fi
+echo ""
+echo "Tip: You can run ./setup.sh anytime - it is completely safe!"
+echo ""
