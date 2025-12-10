@@ -1,4 +1,4 @@
-![Causal Discovery Orientation](orientation_video.mp4)
+![Causal Discovery Orientation](orientation_video.gif)
 
 # Causal Discovery with Quasi-Interventions
 
