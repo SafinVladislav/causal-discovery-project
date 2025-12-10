@@ -1,3 +1,5 @@
+![Causal Discovery Orientation](orientation_video.mp4)
+
 # Causal Discovery with Quasi-Interventions
 
 Python project for learning fully oriented causal DAGs on discrete data by combining the PC algorithm (skeleton) with simulated quasi-interventions that orient remaining undirected edges.
