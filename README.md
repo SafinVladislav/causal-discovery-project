@@ -55,5 +55,5 @@ python -m unittest tests.test_statistical_tests
 See `Documentation.pdf` for full method description.
 
 **Author**: Vladislav Safin 
-**License**: MIT (feel free to change)  
+**License**: MIT
 **Year**: 2025
