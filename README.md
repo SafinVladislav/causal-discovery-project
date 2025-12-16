@@ -52,7 +52,7 @@ python -m unittest tests.test_orienting_alg
 python -m unittest tests.test_statistical_tests
 ```
 
-See `Documentation.pdf` for full method description.
+See `Documentation.pdf` for full method description. This code is based on approaches described in He and Geng (2008).
 
 **Author**: Vladislav Safin 
 **License**: MIT
