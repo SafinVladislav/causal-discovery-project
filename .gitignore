@@ -1,2 +1,4 @@
 models/
 visualizations/
+__pycache__/
+*.pyc
