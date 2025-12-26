@@ -1,13 +1,17 @@
 from core.graph_utils import find_undirected_edges, propagate_orientations, get_chain_components
 from core.intervention import choose_intervention_variable
 from core.statistical_tests import robust_orientation_test
+from pathlib import Path
+from auxiliary.visualize import visualize_step, make_video_from_pngs
 
 """
 Algorithm for orienting an essential graph.
 It does so in each chain component separately, getting experimental
 data and running statistical tests.
 """
-def orient_with_logic_and_experiments(graph, observational_data, data_generator, nI, aI1, aI2, strategy):
+def orient_with_logic_and_experiments(graph, observational_data, data_generator, nI, aI1, aI2, strategy, vis_dir: Path = None):
+    step = 0
+
     temp_graph = graph.copy()
     all_oriented = set()
 
@@ -54,6 +58,13 @@ def orient_with_logic_and_experiments(graph, observational_data, data_generator,
 
                     all_oriented.add(orientation)
                     all_oriented.update(propagated)
+    
+            if vis_dir:
+                step += 1
+                visualize_step(temp_graph, variable_to_intervene, all_oriented, step, vis_dir)
+
+    if vis_dir:
+        make_video_from_pngs(vis_dir)
 
     fallback_perc = fallback_interventions / total_interventions if (total_interventions > 0) else 0
     return temp_graph, all_oriented, total_interventions, fallback_perc

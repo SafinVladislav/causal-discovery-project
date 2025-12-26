@@ -106,9 +106,7 @@ def is_bad_graph(graph, new_oriented_edge=None):
     return has_directed_cycle(graph, new_oriented_edge) or has_v_structure(graph, new_oriented_edge)
 
 """
-If orienting u->v creates a cycle or v-structure, orient v->u instead 
-(if valid). We check edges individually to keep propagating even when graph overall becomes bad. 
-If neither direction works, skip.
+If orienting u->v creates a cycle or v-structure, orient v->u instead. 
 """
 def propagate_orientations(graph):
     temp_graph = graph.copy()
@@ -192,14 +190,11 @@ def orient_random_restarts(graph):
 """
 Generate a required number of correct dags.
 """
-WARNING_THRESHOLD = 0.05
 def sample_dags(graph, n_samples):
     def generate_dag():
         return orient_random_restarts(graph)
     dags = Parallel(n_jobs=-1)(delayed(generate_dag)() for _ in range(n_samples))
     valid_dags = [dag for dag in dags if dag is not None]
-    if (len(valid_dags) > 0) and (len(valid_dags) / n_samples < WARNING_THRESHOLD):
-        print(f"\nFor n_samples = {n_samples} less then {WARNING_THRESHOLD * 100} percent of valid dags generated.")
     return valid_dags
 
 """

@@ -12,7 +12,10 @@ import numpy as np
 from scipy.stats import ttest_rel, ranksums
 import json
 import os
+import random
+import uuid
 from pgmpy.estimators import PC
+import shutil
 
 from core.orienting_alg import orient_with_logic_and_experiments
 from core.graph_utils import check_if_estimated_correctly, find_undirected_edges, to_undirected_with_v_structures
@@ -24,7 +27,7 @@ warnings.filterwarnings("ignore")
 
 current_script_path = Path(__file__).resolve()
 PROJECT_ROOT = current_script_path.parent
-RELATIVE_VIS_DIR = Path("visualizations")
+RELATIVE_VIS_DIR = PROJECT_ROOT / Path("visualizations")
 
 """
 This function is meant for choosing best PC parameters.
@@ -94,12 +97,21 @@ PC_SIG_LEV = 0.1
 Running essential graph generation and orientation for each set of parameters 'trials' 
 times.
 """
-def run_simulation(data_generator, trials, nIs, aI1s, aI2s, strategy):
+def run_simulation(data_generator, trials, nIs, aI1s, aI2s, strategy, image=False, video=False):
     simulation_results = []
 
     print(f"\nStrategy: {strategy}")
 
     total_combinations = len(nIs) * len(aI1s) * len(aI2s) * trials
+    if (image or video) and (total_combinations != 1):
+        print("For visualizations only one set of parameters is accepted!")
+        return None
+
+    img_video_path = RELATIVE_VIS_DIR / f"{model_name}_{strategy}"
+    if img_video_path.exists():
+        shutil.rmtree(img_video_path, ignore_errors=True)
+    img_video_path.mkdir(parents=True, exist_ok=True)
+
     with tqdm(total=total_combinations, desc="Progress") as pbar_outer:
         for nI in nIs:
             for aI1 in aI1s:
@@ -127,11 +139,11 @@ def run_simulation(data_generator, trials, nIs, aI1s, aI2s, strategy):
                             PC algorithm is rather slow, so simplified essential
                             graph may be good for testing.
                             """
-                            essential_graph = data_generator.get_essential_graph()
-                            """essential_graph = nx.DiGraph(pc_estimator.estimate(
+                            #essential_graph = data_generator.get_essential_graph()
+                            essential_graph = nx.DiGraph(pc_estimator.estimate(
                                 variant='stable', ci_test='chi_square',
                                 significance_level=PC_SIG_LEV, return_type="cpdag"
-                            ))"""
+                            ))
 
                         end_pc = time.time()
                         time_pc = end_pc - start_pc
@@ -144,7 +156,7 @@ def run_simulation(data_generator, trials, nIs, aI1s, aI2s, strategy):
 
                         start_orient = time.time()
                         oriented_graph, oriented, num_exp, fallback_perc = orient_with_logic_and_experiments(
-                            essential_graph, obs_data, data_generator, nI, aI1, aI2, strategy
+                            essential_graph, obs_data, data_generator, nI, aI1, aI2, strategy, vis_dir=(img_video_path if video else None)
                         )
                         end_orient = time.time()
                         time_orient = end_orient - start_orient
@@ -154,8 +166,11 @@ def run_simulation(data_generator, trials, nIs, aI1s, aI2s, strategy):
                         perf['fallback'] += fallback_perc
 
                         perf[is_correct]['experiments'] += num_exp
-                        perf[is_correct]['recall'] += data_generator.recall(oriented)
+                        perf[is_correct]['recall'] += data_generator.recall(oriented, essential_graph)
                         perf[is_correct]['precision'] += data_generator.precision(oriented)
+
+                        if image:
+                            data_generator.visualize(essential_graph, oriented_graph, img_video_path)
 
                         pbar_outer.update(1)
 
@@ -198,39 +213,21 @@ if __name__ == "__main__":
     # 'example_1', 'example_2', 'asia', 'cancer', 'earthquake', 'sachs', 'survey', 'alarm', 'barley', 'child', 'insurance', 'mildew', 'water', 'hailfinder', 'hepar2', 'win95pts', 'andes', 'munin_subnetwork_1'
     # slow: 'diabetes', 'link', 'pathfinder', 'munin_full_network', 'munin_subnetwork_2', 'munin_subnetwork_3', 'munin_subnetwork_4'
     # "greedy", "entropy", "minimax"
+
     trials = 1
 
     BOLD = '\033[1m'
     END = '\033[0m'
 
-    for model_name in ['insurance']:
+    for model_name in ['example_1', 'example_2']:
         print(f"{BOLD}\n{model_name.upper()}{END}")
         
         data_generator = DataGenerator(model_name)
 
         #tune_pc_parameters(data_generator, 3, [500, 1000, 2000, 5000, 10000, 20000, 50000], [0.001, 0.005, 0.01, 0.05, 0.1, 0.3])
-        for strategy in ["greedy"]:#, "entropy", "minimax"]:
-            #results = run_simulation(data_generator, trials, [0.01, 0.05, 0.1, 0.2], [0.01, 0.05, 0.1, 0.2], strategy)
-            results = run_simulation(data_generator, trials, [10000], [0.05], [0.2], strategy)#[0.01, 0.05, 0.1, 0.2], [0.01, 0.05, 0.1, 0.2], strategy)
+        for strategy in ["greedy", "entropy", "minimax"]:
+            results = run_simulation(data_generator, trials, [10000], [0.05], [0.2], strategy)#, image=True, video=True)
 
-            """
-            nI - samples quantity in experimental dataset;
-            aI1 - significance level for marginal test;
-            aI2 - significance level for conditional test;
-            corr_perc - average share of correctly estimated essential graphs (PC);
-            undir - average number of undirected ribs in essential graph;
-            oriented - average number of oriented ribs (among originally undirected);
-            recall - average share of oriented ribs (among originally undirected);
-            recall_corr - same, but only for correctly estimated essential graphs;
-            prec - average share of correctly oriented ribs (among all oriented);
-            prec_corr - same, but only for correctly estimated essential graphs;
-            F1 - score based on recall and prec;
-            F1 - score based on recall_corr and prec_corr;
-            exp - average number of conducted experiments (interventions);
-            exp_corr - same, but only for correctly estimated essential graphs;
-            time_pc - average time spent constructing essential graph;
-            time_orient - average time spent orienting.
-            """
             print("--- Simulation Results ---")
 
             for res in results:
@@ -252,5 +249,4 @@ if __name__ == "__main__":
                       f"time_pc - {res['time_pc']:.2f}; "
                       f"time_orient - {res['time_orient']:.2f}"
                       )
-            data_generator.visualize(results[0]['essential_graph'], results[0]['oriented_graph'], RELATIVE_VIS_DIR / f"{model_name}")
         

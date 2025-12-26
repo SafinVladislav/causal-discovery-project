@@ -22,7 +22,7 @@ Greedy - choosing a variable with maximum adjacent undirected edges.
 Entropy - making future orienting as efficient, on average, as possible
 (once we orient there will probably be few viable dags left).
 Minimax - same as Entropy, but considering the worst case instead of average
-(once we orient there will for sure be few viable dags left).
+(once we orient there will for sure be not too many viable dags left).
 """
 def choose_intervention_variable(graph, intervened, strategy):
     if strategy not in ["greedy", "minimax", "entropy"]:

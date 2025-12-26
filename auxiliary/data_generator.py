@@ -118,8 +118,7 @@ class DataGenerator:
     (each stored as two directed edges in the graph) 
     that were successfully oriented.
     """
-    def recall(self, oriented):
-        essential_graph = self.get_essential_graph()
+    def recall(self, oriented, essential_graph):
         undirected_edges = find_undirected_edges(essential_graph)
         return len(oriented & set(undirected_edges)) / (len(undirected_edges) / 2) if len(undirected_edges) > 0 else 1.0
 
